@@ -1,0 +1,105 @@
+/* ===================================================
+   ===== RSUI ENTERPRISE THEME (BRAND IDENTITY) ===== 
+   =================================================== */
+
+/* Latar Belakang Utama */
+.content-wrapper { background-color: #F4F6F9 !important; }
+
+/* Warna Utama RSUI (Biru & Oranye) */
+.main-header { background-color: #0F5DA6 !important; }
+.main-sidebar, .brand-link { background-color: #0A3F73 !important; }
+
+/* Menu Aktif Sidebar */
+.nav-sidebar .nav-link.active {
+    background-color: #F7941D !important; 
+    color: #fff !important;
+}
+
+/* Tipografi & Badge */
+.text-rsui { color: #0F5DA6 !important; }
+.badge-danger { background-color: #F7941D !important; } /* Sesuai request RSUI */
+.small-box { border-radius: 10px; }
+
+/* Header Tabel Standar (Light Mode) */
+.table thead {
+    background-color: #0F5DA6;
+    color: white;
+}
+
+/* Sidebar Text Fix */
+.main-sidebar .nav-link { color: #ffffff !important; }
+.main-sidebar .nav-link:hover { background-color: #0F5DA6 !important; }
+.main-sidebar .nav-header { color: #cfd8dc !important; }
+
+/* ===================================================
+   ===== WARNA BARIS TABEL (AFYA STYLE - Poin 8) ===== 
+   =================================================== */
+
+/* Hijau: Available */
+.table-available, .table-available > td { background-color: #d4edda !important; color: #155724 !important; }
+
+/* Putih: Occupied (Standar) */
+.table-occupied, .table-occupied > td { background-color: #ffffff !important; color: #212529 !important; }
+
+/* Pink: Rencana Pulang (Poin 8) */
+.table-discharge, .table-discharge > td { background-color: #fce4ec !important; color: #c2185b !important; }
+
+/* Ungu: Rencana Pindah */
+.table-transfer, .table-transfer > td { background-color: #f3e5f5 !important; color: #7b1fa2 !important; }
+
+/* Kuning: Booked */
+.table-booked, .table-booked > td { background-color: #fff3cd !important; color: #856404 !important; }
+
+/* Biru: Cleaning */
+.table-cleaning, .table-cleaning > td { background-color: #d1ecf1 !important; color: #0c5460 !important; }
+
+/* ===================================================
+   ===== TOTAL DARK MODE OPTIMIZATION (POIN 1) ===== 
+   =================================================== */
+
+body { transition: background-color 0.3s ease; }
+
+/* Background & Card Mode Gelap */
+body.dark-mode .content-wrapper { background-color: #1e2227 !important; }
+body.dark-mode .card, 
+body.dark-mode .small-box.bg-white { 
+    background-color: #2c3136 !important; 
+    color: #ffffff !important;
+    border: 1px solid #4b545c;
+}
+
+/* Header Tabel Mode Gelap */
+body.dark-mode .table thead { background-color: #343a40 !important; }
+body.dark-mode .table thead th { color: #ffffff !important; border-bottom: 2px solid #4b545c; }
+
+/* --- Penyesuaian Baris Tabel di Dark Mode --- */
+body.dark-mode .table-available > td { background-color: #1e4620 !important; color: #ffffff !important; }
+body.dark-mode .table-occupied > td  { background-color: #2c3136 !important; color: #ffffff !important; }
+body.dark-mode .table-discharge > td { background-color: #702d41 !important; color: #ffffff !important; }
+body.dark-mode .table-booked > td    { background-color: #664d03 !important; color: #ffffff !important; }
+body.dark-mode .table-transfer > td  { background-color: #4a148c !important; color: #ffffff !important; }
+
+/* --- Styling Halaman Rekap (Summary) Dark Mode --- */
+body.dark-mode .floor-label { background-color: rgba(255, 255, 255, 0.05) !important; color: #ffffff !important; }
+body.dark-mode .bg-light-gray { background-color: #3f474e !important; color: #ced4da !important; }
+body.dark-mode .bg-white { background-color: #2c3136 !important; color: #ffffff !important; }
+
+/* Border Tabel Rekap di Dark Mode */
+body.dark-mode .table-bordered td, 
+body.dark-mode .table-bordered th {
+    border: 1px solid #4b545c !important;
+}
+
+/* Status Text Brighter in Dark Mode (Agar Lebih Jelas) */
+body.dark-mode .text-danger { color: #ff6b6b !important; }   /* Discharge Plan Red */
+body.dark-mode .text-success { color: #51cf66 !important; }  /* Available Green */
+body.dark-mode .text-primary { color: #4aa3ff !important; }  /* Label Lantai Blue */
+
+/* Hover Effect yang lebih nyata di Dark Mode */
+body.dark-mode .card:hover {
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important;
+}
+.bg-warning-soft {
+    background-color: #fff9e6; /* Kuning sangat muda */
+    color: #856404; /* Teks cokelat tua agar kontras */
+}
