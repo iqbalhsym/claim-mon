@@ -88,14 +88,19 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        $request->validate([
+        $rules = [
             'username' => ['required', 'string'],
             'password' => ['required'],
-            'captcha' => ['required', 'numeric'],
-        ]);
+        ];
+
+        if (config('app.env') !== 'local') {
+            $rules['captcha'] = ['required', 'numeric'];
+        }
+
+        $request->validate($rules);
 
         // Validasi Captcha
-        if ($request->captcha != session('captcha_answer')) {
+        if (config('app.env') !== 'local' && $request->captcha != session('captcha_answer')) {
             return back()
                 ->withInput($request->only('username'))
                 ->withErrors(['captcha' => 'Jawaban captcha salah. Silakan coba lagi.']);

@@ -2,6 +2,37 @@
 
 @section('title', 'Data Rekam Medis')
 
+@section('css')
+<style>
+  /* Pagination Dark Mode & Styling Overrides */
+  .pagination .page-link {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.75rem;
+    cursor: pointer;
+  }
+  [data-theme="dark"] .pagination .page-link {
+    background-color: #1e2e5c;
+    border-color: var(--border-color) !important;
+    color: var(--text-color);
+  }
+  [data-theme="dark"] .pagination .page-item.active .page-link {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color) !important;
+    color: #ffffff;
+  }
+  [data-theme="dark"] .pagination .page-item.disabled .page-link {
+    background-color: #15234b;
+    border-color: var(--border-color) !important;
+    color: var(--text-muted);
+  }
+  [data-theme="dark"] .pagination .page-link:hover {
+    background-color: var(--sidebar-hover-bg);
+    border-color: var(--border-color) !important;
+    color: var(--sidebar-hover-color);
+  }
+</style>
+@endsection
+
 @section('content')
 <div class="d-flex justify-content-between align-items-center flex-wrap grid-margin mb-4">
   <div>
@@ -216,6 +247,28 @@
             </tbody>
           </table>
         </div>
+        
+        {{-- Pagination Section --}}
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 mt-4" id="paginationSection">
+          <div class="d-flex align-items-center gap-2">
+            <span class="small text-muted mb-0">Tampilkan</span>
+            <select id="pageSizeSelect" class="form-select form-select-sm" style="width: auto;">
+              <option value="50">50</option>
+              <option value="100">100</option>
+              <option value="500">500</option>
+              <option value="1000">1000</option>
+            </select>
+            <span class="small text-muted mb-0">data per halaman</span>
+          </div>
+          <div>
+            <span class="small text-muted mb-0" id="paginationInfo"></span>
+          </div>
+          <nav aria-label="Navigasi Rekam Medis">
+            <ul class="pagination pagination-sm mb-0" id="paginationNav">
+              <!-- JS will populate page links here -->
+            </ul>
+          </nav>
+        </div>
       </div>
     </div>
   </div>
@@ -263,8 +316,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnReset          = document.getElementById('btnResetFilter');
     const table             = document.getElementById('medicalTable');
     const tbody             = table.getElementsByTagName('tbody')[0];
+    
+    // Pagination Elements
+    const pageSizeSelect    = document.getElementById('pageSizeSelect');
+    const paginationInfo    = document.getElementById('paginationInfo');
+    const paginationNav     = document.getElementById('paginationNav');
 
-    function applyFilters() {
+    let currentPage = 1;
+    let pageSize = 50;
+
+    function applyFilters(resetPage = true) {
         const search    = (searchInput.value || searchInputMobile.value).toLowerCase();
         const status    = filterStatus.value;
         const guarantor = filterGuarantor.value;
@@ -272,13 +333,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const analisa   = filterAnalisa.value;
 
         const rows = tbody.getElementsByTagName('tr');
-        let visible = 0;
+        const matchedRows = [];
+        let totalRecords = 0;
 
         for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
             // Skip empty state row
-            if (row.cells.length < 2) { row.style.display = ''; continue; }
+            if (row.cells.length < 2) { 
+                row.style.display = 'none'; 
+                continue; 
+            }
 
+            totalRecords++;
             const rowStatus   = row.dataset.status   || '';
             const rowGuarantor= row.dataset.guarantor || '';
             const rowRM       = row.dataset.rm        || '';
@@ -292,22 +358,148 @@ document.addEventListener('DOMContentLoaded', function() {
             const matchAnalisa   = !analisa   || rowAnalisa === analisa;
 
             const show = matchSearch && matchStatus && matchGuarantor && matchRM && matchAnalisa;
-            row.style.display = show ? '' : 'none';
-            if (show) visible++;
+            
+            // Hide by default, we will show only the paginated subset of matchedRows
+            row.style.display = 'none';
+
+            if (show) {
+                matchedRows.push(row);
+            }
         }
 
-        // Update count label
-        const total = Array.from(rows).filter(r => r.cells.length >= 2).length;
+        if (resetPage) {
+            currentPage = 1;
+        }
+
+        const totalActive = matchedRows.length;
+        const totalPages = Math.ceil(totalActive / pageSize) || 1;
+
+        if (currentPage > totalPages) {
+            currentPage = totalPages;
+        }
+        if (currentPage < 1) {
+            currentPage = 1;
+        }
+
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = Math.min(startIndex + pageSize, totalActive);
+
+        // Show rows for the current page
+        for (let i = startIndex; i < endIndex; i++) {
+            matchedRows[i].style.display = '';
+        }
+
+        // Show empty state if there are no records matching
+        if (totalActive === 0) {
+            const emptyRow = Array.from(rows).find(row => row.cells.length < 2);
+            if (emptyRow) {
+                emptyRow.style.display = '';
+            }
+        }
+
+        // Update count label (filterCount at top)
         if (status || guarantor || rm || analisa || search) {
-            filterCount.textContent = `Menampilkan ${visible} dari ${total} data`;
+            filterCount.textContent = `Menampilkan ${totalActive} dari ${totalRecords} data`;
         } else {
             filterCount.textContent = '';
         }
+
+        // Update pagination info & nav
+        if (totalActive > 0) {
+            paginationInfo.textContent = `Menampilkan ${startIndex + 1} sampai ${endIndex} dari ${totalActive} data`;
+        } else {
+            paginationInfo.textContent = 'Tidak ada data';
+        }
+
+        renderPagination(totalActive);
     }
 
-    // Bind all filter inputs
-    [searchInput, searchInputMobile].forEach(el => el.addEventListener('keyup', applyFilters));
-    [filterStatus, filterGuarantor, filterRM, filterAnalisa].forEach(el => el.addEventListener('change', applyFilters));
+    function renderPagination(totalActive) {
+        const totalPages = Math.ceil(totalActive / pageSize) || 1;
+        paginationNav.innerHTML = '';
+
+        // Previous button
+        const prevLi = document.createElement('li');
+        prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+        prevLi.innerHTML = `<a class="page-link" href="#" aria-label="Previous"><i data-feather="chevron-left" style="width:14px;height:14px;"></i></a>`;
+        if (currentPage > 1) {
+            prevLi.addEventListener('click', function(e) {
+                e.preventDefault();
+                currentPage--;
+                applyFilters(false);
+            });
+        }
+        paginationNav.appendChild(prevLi);
+
+        // Smart page numbers
+        const range = 2;
+        let start = Math.max(1, currentPage - range);
+        let end = Math.min(totalPages, currentPage + range);
+
+        if (start > 1) {
+            addPageLink(1);
+            if (start > 2) {
+                addEllipsis();
+            }
+        }
+
+        for (let i = start; i <= end; i++) {
+            addPageLink(i);
+        }
+
+        if (end < totalPages) {
+            if (end < totalPages - 1) {
+                addEllipsis();
+            }
+            addPageLink(totalPages);
+        }
+
+        // Next button
+        const nextLi = document.createElement('li');
+        nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+        nextLi.innerHTML = `<a class="page-link" href="#" aria-label="Next"><i data-feather="chevron-right" style="width:14px;height:14px;"></i></a>`;
+        if (currentPage < totalPages) {
+            nextLi.addEventListener('click', function(e) {
+                e.preventDefault();
+                currentPage++;
+                applyFilters(false);
+            });
+        }
+        paginationNav.appendChild(nextLi);
+        
+        feather.replace();
+
+        function addPageLink(page) {
+            const li = document.createElement('li');
+            li.className = `page-item ${currentPage === page ? 'active' : ''}`;
+            li.innerHTML = `<a class="page-link" href="#">${page}</a>`;
+            li.addEventListener('click', function(e) {
+                e.preventDefault();
+                currentPage = page;
+                applyFilters(false);
+            });
+            paginationNav.appendChild(li);
+        }
+
+        function addEllipsis() {
+            const li = document.createElement('li');
+            li.className = 'page-item disabled';
+            li.innerHTML = '<span class="page-link">...</span>';
+            paginationNav.appendChild(li);
+        }
+    }
+
+    // Bind filter inputs
+    const filterEvents = () => applyFilters(true);
+    [searchInput, searchInputMobile].forEach(el => el.addEventListener('keyup', filterEvents));
+    [filterStatus, filterGuarantor, filterRM, filterAnalisa].forEach(el => el.addEventListener('change', filterEvents));
+
+    // Bind page size select
+    pageSizeSelect.addEventListener('change', function() {
+        pageSize = parseInt(this.value);
+        currentPage = 1;
+        applyFilters(false);
+    });
 
     // Reset button
     btnReset.addEventListener('click', function() {
@@ -317,11 +509,15 @@ document.addEventListener('DOMContentLoaded', function() {
         filterGuarantor.value    = '';
         filterRM.value           = '';
         filterAnalisa.value      = '';
-        applyFilters();
+        pageSizeSelect.value     = '50';
+        pageSize                 = 50;
+        currentPage              = 1;
+        applyFilters(true);
         feather.replace();
     });
 
-    feather.replace();
+    // Initial load
+    applyFilters(true);
 });
 </script>
 @endsection
