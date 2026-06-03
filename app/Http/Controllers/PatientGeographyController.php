@@ -222,9 +222,93 @@ class PatientGeographyController extends Controller
             $current->addMonth();
         }
 
+        // --- NEW CHARTS DATA ---
+
+        // 1 & 2. Sebaran & Penjaminan Pasien Per Wilayah
+        $sebaranWilayah = PatientGeography::selectRaw("
+                CASE 
+                    WHEN provinsi = 'Jawa Barat' THEN 'Jawa Barat'
+                    WHEN provinsi = 'DKI Jakarta' THEN 'DKI Jakarta'
+                    WHEN provinsi = 'Banten' THEN 'Banten'
+                    ELSE 'Lain-lain'
+                END as wilayah,
+                count(*) as total,
+                SUM(CASE WHEN kat_guarantor = 'JKN' THEN 1 ELSE 0 END) as jkn,
+                SUM(CASE WHEN kat_guarantor != 'JKN' OR kat_guarantor IS NULL THEN 1 ELSE 0 END) as non_jkn
+            ")
+            ->groupBy('wilayah')
+            ->orderByDesc('total')
+            ->get();
+
+        // 3. Jumlah Pasien Per Wilayah (Top 15 cities)
+        $topCities = PatientGeography::selectRaw("
+                kabupaten_kota,
+                count(*) as total
+            ")
+            ->groupBy('kabupaten_kota')
+            ->orderByDesc('total')
+            ->limit(15)
+            ->get();
+
+        // 4 & 5. Sebaran & Penjaminan Pasien Wilayah Jawa Barat
+        $sebaranJawaBarat = PatientGeography::where('provinsi', 'Jawa Barat')
+            ->selectRaw("
+                CASE 
+                    WHEN LOWER(kabupaten_kota) = 'depok' THEN 'Depok'
+                    WHEN LOWER(kabupaten_kota) = 'bogor' THEN 'Bogor'
+                    WHEN LOWER(kabupaten_kota) = 'bekasi' THEN 'Bekasi'
+                    ELSE 'Jawa Barat Lainnya'
+                END as kota_group,
+                count(*) as total,
+                SUM(CASE WHEN kat_guarantor = 'JKN' THEN 1 ELSE 0 END) as jkn,
+                SUM(CASE WHEN kat_guarantor != 'JKN' OR kat_guarantor IS NULL THEN 1 ELSE 0 END) as non_jkn
+            ")
+            ->groupBy('kota_group')
+            ->orderByDesc('total')
+            ->get();
+
+        // 6. Pengunjung Per Bulan Wilayah Jawa Barat
+        $monthlyJawaBaratRaw = PatientGeography::where('provinsi', 'Jawa Barat')
+            ->whereBetween('tanggal_kunjungan', ['2025-01-01', '2026-03-31'])
+            ->selectRaw("
+                TO_CHAR(tanggal_kunjungan, 'YYYY-MM') as month_key,
+                CASE 
+                    WHEN LOWER(kabupaten_kota) = 'depok' THEN 'Depok'
+                    WHEN LOWER(kabupaten_kota) = 'bogor' THEN 'Bogor'
+                    WHEN LOWER(kabupaten_kota) = 'bekasi' THEN 'Bekasi'
+                    ELSE 'Jawa Barat Lainnya'
+                END as kota_group,
+                count(*) as total
+            ")
+            ->groupBy('month_key', 'kota_group')
+            ->orderBy('month_key')
+            ->get();
+
+        // Format data bulanan Jawa Barat ke array berindeks bulan
+        $monthlyJawaBaratFormatted = [];
+        $current = $startDate->copy();
+        while ($current->lte($endDate)) {
+            $monthKey = $current->format('Y-m');
+            $monthlyJawaBaratFormatted[$monthKey] = [
+                'label' => $current->translatedFormat('M Y'),
+                'Depok' => 0,
+                'Bogor' => 0,
+                'Bekasi' => 0,
+                'Jawa Barat Lainnya' => 0,
+            ];
+            $current->addMonth();
+        }
+
+        foreach ($monthlyJawaBaratRaw as $row) {
+            if (isset($monthlyJawaBaratFormatted[$row->month_key])) {
+                $monthlyJawaBaratFormatted[$row->month_key][$row->kota_group] = $row->total;
+            }
+        }
+        $monthlyJawaBarat = array_values($monthlyJawaBaratFormatted);
+
         return view('patient_geography.index', compact(
             'byProvinsi', 'totalPasien', 'totalBpjs', 'totalNonBpjs', 'totalProvinsi', 'provinsiList',
-            'perBulan'
+            'perBulan', 'sebaranWilayah', 'topCities', 'sebaranJawaBarat', 'monthlyJawaBarat'
         ));
     }
 

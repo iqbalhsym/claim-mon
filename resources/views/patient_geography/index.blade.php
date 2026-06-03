@@ -496,6 +496,90 @@
 
 </div>
 
+{{-- ===== ROW 3: SEBARAN PASIEN, PENJAMINAN PASIEN, JUMLAH PASIEN PER WILAYAH ===== --}}
+<div class="row g-3 mb-4 fade-in-up" style="animation-delay:250ms">
+  {{-- Sebaran Pasien Per Wilayah --}}
+  <div class="col-md-4">
+    <div class="prov-table-wrap h-100">
+      <div class="prov-table-head">
+        <i data-feather="pie-chart" style="width:16px;height:16px;color:var(--primary-color)"></i>
+        Sebaran Pasien Per Wilayah
+      </div>
+      <div style="padding:16px; height:280px; display:flex; justify-content:center; align-items:center;">
+        <canvas id="sebaranWilayahChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  {{-- Penjaminan Pasien Per Wilayah --}}
+  <div class="col-md-4">
+    <div class="prov-table-wrap h-100">
+      <div class="prov-table-head">
+        <i data-feather="bar-chart-2" style="width:16px;height:16px;color:var(--success-color)"></i>
+        Penjaminan Pasien Per Wilayah
+      </div>
+      <div style="padding:16px; height:280px;">
+        <canvas id="penjaminanWilayahChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  {{-- Jumlah Pasien Per Wilayah --}}
+  <div class="col-md-4">
+    <div class="prov-table-wrap h-100">
+      <div class="prov-table-head">
+        <i data-feather="users" style="width:16px;height:16px;color:var(--info-color)"></i>
+        Jumlah Pasien Per Wilayah
+      </div>
+      <div style="padding:16px; height:280px;">
+        <canvas id="jumlahPasienWilayahChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+{{-- ===== ROW 4: DETAIL WILAYAH JAWA BARAT ===== --}}
+<div class="row g-3 mb-4 fade-in-up" style="animation-delay:300ms">
+  {{-- Sebaran Pasien Wilayah Jawa Barat --}}
+  <div class="col-md-4">
+    <div class="prov-table-wrap h-100">
+      <div class="prov-table-head">
+        <i data-feather="pie-chart" style="width:16px;height:16px;color:var(--warning-color)"></i>
+        Sebaran Pasien Wilayah Jawa Barat
+      </div>
+      <div style="padding:16px; height:280px; display:flex; justify-content:center; align-items:center;">
+        <canvas id="sebaranJawaBaratChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  {{-- Penjaminan Pasien Wilayah Jawa Barat --}}
+  <div class="col-md-4">
+    <div class="prov-table-wrap h-100">
+      <div class="prov-table-head">
+        <i data-feather="bar-chart-2" style="width:16px;height:16px;color:var(--danger-color)"></i>
+        Penjaminan Pasien Wilayah Jawa Barat
+      </div>
+      <div style="padding:16px; height:280px;">
+        <canvas id="penjaminanJawaBaratChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  {{-- Pengunjung Per Bulan Wilayah Jawa Barat --}}
+  <div class="col-md-4">
+    <div class="prov-table-wrap h-100">
+      <div class="prov-table-head">
+        <i data-feather="trending-up" style="width:16px;height:16px;color:var(--primary-color)"></i>
+        Pengunjung Per Bulan Wilayah Jawa Barat
+      </div>
+      <div style="padding:16px; height:280px;">
+        <canvas id="pengunjungJawaBaratChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="importGeoModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
@@ -1013,8 +1097,304 @@ document.addEventListener('DOMContentLoaded', function() {
     perBulanChart.data.labels              = allLabels.slice(-n);
     perBulanChart.data.datasets[0].data   = allBpjs.slice(-n);
     perBulanChart.data.datasets[1].data   = allNonBpjs.slice(-n);
-    perBulanChart.data.datasets[2].data   = allTotal.slice(-n);
     perBulanChart.update();
+  });
+
+  // ==========================================
+  // 6 NEW CHARTS INITIALIZATION
+  // ==========================================
+  
+  // 1. Sebaran Pasien Per Wilayah (Pie Chart)
+  const sebaranWilayahData = @json($sebaranWilayah);
+  const swLabels = sebaranWilayahData.map(d => d.wilayah);
+  const swTotals = sebaranWilayahData.map(d => d.total);
+  
+  const ctxSw = document.getElementById('sebaranWilayahChart').getContext('2d');
+  new Chart(ctxSw, {
+    type: 'pie',
+    data: {
+      labels: swLabels,
+      datasets: [{
+        data: swTotals,
+        backgroundColor: ['#6571ff', '#cbd5e1', '#05a34a', '#fbbc06'],
+        borderWidth: 2,
+        borderColor: isDark ? '#15234b' : '#ffffff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: {
+            color: isDark ? '#e2e8f0' : '#0b132b',
+            font: { size: 10 }
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+              const pct = total > 0 ? Math.round(ctx.parsed / total * 100) : 0;
+              return ` ${ctx.label}: ${ctx.parsed} (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // 2. Penjaminan Pasien Per Wilayah (Grouped Horizontal Bar Chart)
+  const swJkn = sebaranWilayahData.map(d => d.jkn);
+  const swNonJkn = sebaranWilayahData.map(d => d.non_jkn);
+
+  const ctxPw = document.getElementById('penjaminanWilayahChart').getContext('2d');
+  new Chart(ctxPw, {
+    type: 'bar',
+    data: {
+      labels: swLabels,
+      datasets: [
+        {
+          label: 'JKN',
+          data: swJkn,
+          backgroundColor: '#10b981',
+          borderRadius: 4
+        },
+        {
+          label: 'Non JKN',
+          data: swNonJkn,
+          backgroundColor: '#3b82f6',
+          borderRadius: 4
+        }
+      ]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: isDark ? '#e2e8f0' : '#0b132b', font: { size: 10 } }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: isDark ? '#8899bb' : '#7987a1', font: { size: 9 } },
+          grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }
+        },
+        y: {
+          ticks: { color: isDark ? '#8899bb' : '#7987a1', font: { size: 10 } },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+
+  // 3. Jumlah Pasien Per Wilayah (Horizontal Bar Chart)
+  const topCitiesData = @json($topCities);
+  const tcLabels = topCitiesData.map(d => d.kabupaten_kota);
+  const tcTotals = topCitiesData.map(d => d.total);
+
+  const ctxJpw = document.getElementById('jumlahPasienWilayahChart').getContext('2d');
+  new Chart(ctxJpw, {
+    type: 'bar',
+    data: {
+      labels: tcLabels,
+      datasets: [{
+        label: 'Jumlah Pasien',
+        data: tcTotals,
+        backgroundColor: '#6571ff',
+        borderRadius: 4
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        x: {
+          ticks: { color: isDark ? '#8899bb' : '#7987a1', font: { size: 9 } },
+          grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }
+        },
+        y: {
+          ticks: { color: isDark ? '#8899bb' : '#7987a1', font: { size: 9 } },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+
+  // 4. Sebaran Pasien Wilayah Jawa Barat (Pie Chart)
+  const sebaranJbData = @json($sebaranJawaBarat);
+  const sjbLabels = sebaranJbData.map(d => d.kota_group);
+  const sjbTotals = sebaranJbData.map(d => d.total);
+
+  const ctxSjb = document.getElementById('sebaranJawaBaratChart').getContext('2d');
+  new Chart(ctxSjb, {
+    type: 'pie',
+    data: {
+      labels: sjbLabels,
+      datasets: [{
+        data: sjbTotals,
+        backgroundColor: ['#05a34a', '#fbbc06', '#cbd5e1', '#3b82f6'],
+        borderWidth: 2,
+        borderColor: isDark ? '#15234b' : '#ffffff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: {
+            color: isDark ? '#e2e8f0' : '#0b132b',
+            font: { size: 10 }
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+              const pct = total > 0 ? Math.round(ctx.parsed / total * 100) : 0;
+              return ` ${ctx.label}: ${ctx.parsed} (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // 5. Penjaminan Pasien Wilayah Jawa Barat (Horizontal Bar Chart)
+  const sjbJkn = sebaranJbData.map(d => d.jkn);
+  const sjbNonJkn = sebaranJbData.map(d => d.non_jkn);
+
+  const ctxPjb = document.getElementById('penjaminanJawaBaratChart').getContext('2d');
+  new Chart(ctxPjb, {
+    type: 'bar',
+    data: {
+      labels: sjbLabels,
+      datasets: [
+        {
+          label: 'JKN',
+          data: sjbJkn,
+          backgroundColor: '#10b981',
+          borderRadius: 4
+        },
+        {
+          label: 'Non JKN',
+          data: sjbNonJkn,
+          backgroundColor: '#3b82f6',
+          borderRadius: 4
+        }
+      ]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: isDark ? '#e2e8f0' : '#0b132b', font: { size: 10 } }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: isDark ? '#8899bb' : '#7987a1', font: { size: 9 } },
+          grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }
+        },
+        y: {
+          ticks: { color: isDark ? '#8899bb' : '#7987a1', font: { size: 10 } },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+
+  // 6. Pengunjung Per Bulan Wilayah Jawa Barat (Line Chart)
+  const monthlyJbData = @json($monthlyJawaBarat);
+  const mjbLabels = monthlyJbData.map(d => d.label);
+  const mjbDepok = monthlyJbData.map(d => d.Depok);
+  const mjbBogor = monthlyJbData.map(d => d.Bogor);
+  const mjbBekasi = monthlyJbData.map(d => d.Bekasi);
+  const mjbOthers = monthlyJbData.map(d => d['Jawa Barat Lainnya']);
+
+  const ctxMjb = document.getElementById('pengunjungJawaBaratChart').getContext('2d');
+  new Chart(ctxMjb, {
+    type: 'line',
+    data: {
+      labels: mjbLabels,
+      datasets: [
+        {
+          label: 'Depok',
+          data: mjbDepok,
+          borderColor: '#05a34a',
+          backgroundColor: 'rgba(5,163,74,0.05)',
+          borderWidth: 2,
+          pointRadius: 3,
+          fill: false,
+          tension: 0.3
+        },
+        {
+          label: 'Bogor',
+          data: mjbBogor,
+          borderColor: '#fbbc06',
+          backgroundColor: 'rgba(251,188,6,0.05)',
+          borderWidth: 2,
+          pointRadius: 3,
+          fill: false,
+          tension: 0.3
+        },
+        {
+          label: 'Bekasi',
+          data: mjbBekasi,
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59,130,246,0.05)',
+          borderWidth: 2,
+          pointRadius: 3,
+          fill: false,
+          tension: 0.3
+        },
+        {
+          label: 'Jawa Barat Lainnya',
+          data: mjbOthers,
+          borderColor: '#64748b',
+          backgroundColor: 'rgba(100,116,139,0.05)',
+          borderWidth: 2,
+          pointRadius: 3,
+          fill: false,
+          tension: 0.3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: isDark ? '#e2e8f0' : '#0b132b', font: { size: 9 } }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: isDark ? '#8899bb' : '#7987a1', font: { size: 8 } },
+          grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { color: isDark ? '#8899bb' : '#7987a1', font: { size: 9 } },
+          grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }
+        }
+      }
+    }
   });
 });
 </script>
