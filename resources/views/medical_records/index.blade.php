@@ -143,14 +143,15 @@
             </thead>
             <tbody>
               @forelse($records as $rec)
-              <tr data-status="{{ $rec->is_rm_lengkap ? 'LENGKAP' : 'TIDAK LENGKAP' }}"
+              <tr class="{{ $rec->is_rm_lengkap ? 'table-row-complete' : 'table-row-incomplete' }}"
+                  data-status="{{ $rec->is_rm_lengkap ? 'LENGKAP' : 'TIDAK LENGKAP' }}"
                   data-guarantor="{{ $rec->guarantor }}"
                   data-rm="{{ $rec->status_kembali_rm ? 'kembali' : 'belum' }}"
                   data-analisa="{{ $rec->status_analisa ? 'sudah' : 'belum' }}">
-                <td class="text-muted small">{{ $rec->billing_no }}</td>
+                <td class="text-muted small text-mono">{{ $rec->billing_no }}</td>
                 <td>
                     <div class="fw-bold">{{ $rec->nama_pasien }}</div>
-                    <div class="text-muted small">No RM: {{ $rec->no_rm }}</div>
+                    <div class="text-muted small">No RM: <span class="text-mono">{{ $rec->no_rm }}</span></div>
                 </td>
                 <td>{{ $rec->guarantor }}</td>
                 <td>
@@ -207,7 +208,7 @@
                         @foreach($riGroups as $g)
                           @if(!empty($g['group_name']))
                             @php $gLengkap = collect($g['items'])->every(fn($i) => $i['is_lengkap']); @endphp
-                            <span class="badge border" style="font-size:0.6rem;padding:2px 4px;background:{{ $gLengkap ? 'rgba(5,163,74,0.1)' : 'rgba(101,113,255,0.08)' }};color:{{ $gLengkap ? '#05a34a' : '#6571ff' }};">
+                            <span class="badge border" style="font-size:0.6rem;padding:2px 4px;background:{{ $gLengkap ? 'rgba(5,163,74,0.1)' : 'rgba(15,93,166,0.08)' }};color:{{ $gLengkap ? '#05a34a' : '#0f5da6' }};">
                               {{ $gLengkap ? '✓' : '' }} {{ Str::limit($g['group_name'], 12) }}
                             </span>
                           @endif

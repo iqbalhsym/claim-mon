@@ -1,105 +1,363 @@
-/* ===================================================
-   ===== RSUI ENTERPRISE THEME (BRAND IDENTITY) ===== 
-   =================================================== */
+/* ============================================================
+   RSUI MEDREC-MON — IBM CARBON + LINEAR HYBRID DESIGN SYSTEM
+   Inspired by IBM Carbon Design System & Linear App
+   Primary Brand: RSUI Blue (#0F5DA6)
+   ============================================================ */
 
-/* Latar Belakang Utama */
-.content-wrapper { background-color: #F4F6F9 !important; }
+/* === 1. GOOGLE FONTS IMPORT === */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
-/* Warna Utama RSUI (Biru & Oranye) */
-.main-header { background-color: #0F5DA6 !important; }
-.main-sidebar, .brand-link { background-color: #0A3F73 !important; }
-
-/* Menu Aktif Sidebar */
-.nav-sidebar .nav-link.active {
-    background-color: #F7941D !important; 
-    color: #fff !important;
+/* === 2. DESIGN TOKENS & NOBLE UI VARIABLES OVERRIDE === */
+:root {
+    /* --- Brand & System Colors --- */
+    --primary-color:       #0F5DA6 !important; /* RSUI Blue */
+    --primary-rgb:         15, 93, 166 !important;
+    --secondary-color:     #525252 !important; /* IBM Gray-80 */
+    --success-color:       #198038 !important; /* IBM Carbon Green */
+    --info-color:          #0043ce !important; /* IBM Carbon Blue */
+    --warning-color:       #b28600 !important; /* IBM Carbon Yellow */
+    --danger-color:        #da1e28 !important; /* IBM Carbon Red */
+    
+    /* --- Surface & Canvas (Light Mode) --- */
+    --bg-color:            #f4f4f4 !important; /* IBM Carbon Gray-10 */
+    --sidebar-bg:          #073a6b !important; /* RSUI Deep Blue */
+    --sidebar-color:       rgba(255, 255, 255, 0.8) !important;
+    --sidebar-hover-bg:    rgba(255, 255, 255, 0.08) !important;
+    --sidebar-hover-color: #ffffff !important;
+    
+    --header-bg:           #ffffff !important;
+    --card-bg:             #ffffff !important;
+    
+    --text-color:          #161616 !important; /* IBM Carbon Gray-100 */
+    --text-muted:          #525252 !important;
+    --border-color:        #e0e0e0 !important; /* IBM Carbon Gray-20 */
+    --dark-color:          #161616 !important;
+    
+    /* --- Typography Scale --- */
+    --body-font:           'IBM Plex Sans', 'Inter', system-ui, -apple-system, sans-serif !important;
+    --heading-font:        'IBM Plex Sans', 'Inter', system-ui, -apple-system, sans-serif !important;
+    --font-mono:           'IBM Plex Mono', 'Courier New', monospace;
 }
 
-/* Tipografi & Badge */
-.text-rsui { color: #0F5DA6 !important; }
-.badge-danger { background-color: #F7941D !important; } /* Sesuai request RSUI */
-.small-box { border-radius: 10px; }
-
-/* Header Tabel Standar (Light Mode) */
-.table thead {
-    background-color: #0F5DA6;
-    color: white;
+[data-theme="dark"] {
+    /* --- Dark Mode Surface (IBM Carbon Gray-100 Theme) --- */
+    --bg-color:            #161616 !important; /* IBM Carbon Gray-100 */
+    --sidebar-bg:          #262626 !important; /* IBM Carbon Gray-90 */
+    --sidebar-color:       #f4f4f4 !important;
+    --sidebar-hover-bg:    #393939 !important; /* IBM Carbon Gray-80 */
+    --sidebar-hover-color: #ffffff !important;
+    
+    --header-bg:           #262626 !important;
+    --card-bg:             #262626 !important;
+    
+    --text-color:          #f4f4f4 !important;
+    --text-muted:          #a8a8a8 !important;
+    --border-color:        #393939 !important;
+    --dark-color:          #ffffff !important;
 }
 
-/* Sidebar Text Fix */
-.main-sidebar .nav-link { color: #ffffff !important; }
-.main-sidebar .nav-link:hover { background-color: #0F5DA6 !important; }
-.main-sidebar .nav-header { color: #cfd8dc !important; }
+/* === 3. GLOBAL STYLE OVERRIDES === */
+body {
+    font-family: var(--body-font) !important;
+    font-size: 13px !important;
+    letter-spacing: 0.16px !important;
+    -webkit-font-smoothing: antialiased;
+}
 
-/* ===================================================
-   ===== WARNA BARIS TABEL (AFYA STYLE - Poin 8) ===== 
-   =================================================== */
-
-/* Hijau: Available */
-.table-available, .table-available > td { background-color: #d4edda !important; color: #155724 !important; }
-
-/* Putih: Occupied (Standar) */
-.table-occupied, .table-occupied > td { background-color: #ffffff !important; color: #212529 !important; }
-
-/* Pink: Rencana Pulang (Poin 8) */
-.table-discharge, .table-discharge > td { background-color: #fce4ec !important; color: #c2185b !important; }
-
-/* Ungu: Rencana Pindah */
-.table-transfer, .table-transfer > td { background-color: #f3e5f5 !important; color: #7b1fa2 !important; }
-
-/* Kuning: Booked */
-.table-booked, .table-booked > td { background-color: #fff3cd !important; color: #856404 !important; }
-
-/* Biru: Cleaning */
-.table-cleaning, .table-cleaning > td { background-color: #d1ecf1 !important; color: #0c5460 !important; }
-
-/* ===================================================
-   ===== TOTAL DARK MODE OPTIMIZATION (POIN 1) ===== 
-   =================================================== */
-
-body { transition: background-color 0.3s ease; }
-
-/* Background & Card Mode Gelap */
-body.dark-mode .content-wrapper { background-color: #1e2227 !important; }
-body.dark-mode .card, 
-body.dark-mode .small-box.bg-white { 
-    background-color: #2c3136 !important; 
+/* === 4. SIDEBAR OVERRIDES (Noble UI Navigation) === */
+.sidebar-header {
+    background: var(--sidebar-bg) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+.sidebar-header .logo .logo-text {
     color: #ffffff !important;
-    border: 1px solid #4b545c;
+    font-weight: 700 !important;
+}
+.sidebar-header .logo span {
+    color: #f7941d !important; /* RSUI Accent Orange */
+}
+.sidebar-body {
+    background: var(--sidebar-bg) !important;
+}
+.sidebar .nav-category {
+    color: rgba(255, 255, 255, 0.4) !important;
+    font-size: 10px !important;
+    letter-spacing: 1.2px !important;
+}
+.sidebar .nav-link {
+    border-radius: 0px !important; /* Sharp corners */
+    color: var(--sidebar-color) !important;
+    font-size: 13px !important;
+    padding: 10px 20px !important;
+    margin: 0 !important;
+    border-left: 3px solid transparent;
+}
+.sidebar .nav-link:hover {
+    background: var(--sidebar-hover-bg) !important;
+    color: var(--sidebar-hover-color) !important;
+}
+.sidebar .nav-link.active {
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: #ffffff !important;
+    border-left-color: #f7941d !important; /* Orange left border indicator for active menu */
+}
+.sidebar .link-icon {
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+.sidebar .nav-link.active .link-icon,
+.sidebar .nav-link:hover .link-icon {
+    color: #ffffff !important;
 }
 
-/* Header Tabel Mode Gelap */
-body.dark-mode .table thead { background-color: #343a40 !important; }
-body.dark-mode .table thead th { color: #ffffff !important; border-bottom: 2px solid #4b545c; }
-
-/* --- Penyesuaian Baris Tabel di Dark Mode --- */
-body.dark-mode .table-available > td { background-color: #1e4620 !important; color: #ffffff !important; }
-body.dark-mode .table-occupied > td  { background-color: #2c3136 !important; color: #ffffff !important; }
-body.dark-mode .table-discharge > td { background-color: #702d41 !important; color: #ffffff !important; }
-body.dark-mode .table-booked > td    { background-color: #664d03 !important; color: #ffffff !important; }
-body.dark-mode .table-transfer > td  { background-color: #4a148c !important; color: #ffffff !important; }
-
-/* --- Styling Halaman Rekap (Summary) Dark Mode --- */
-body.dark-mode .floor-label { background-color: rgba(255, 255, 255, 0.05) !important; color: #ffffff !important; }
-body.dark-mode .bg-light-gray { background-color: #3f474e !important; color: #ced4da !important; }
-body.dark-mode .bg-white { background-color: #2c3136 !important; color: #ffffff !important; }
-
-/* Border Tabel Rekap di Dark Mode */
-body.dark-mode .table-bordered td, 
-body.dark-mode .table-bordered th {
-    border: 1px solid #4b545c !important;
+/* === 5. SHARP CORNERS (IBM Carbon Style) === */
+.card,
+.btn,
+.form-control,
+.form-select,
+.input-group-text,
+.badge,
+.alert,
+.modal-content,
+.pagination .page-link {
+    border-radius: 0px !important;
 }
 
-/* Status Text Brighter in Dark Mode (Agar Lebih Jelas) */
-body.dark-mode .text-danger { color: #ff6b6b !important; }   /* Discharge Plan Red */
-body.dark-mode .text-success { color: #51cf66 !important; }  /* Available Green */
-body.dark-mode .text-primary { color: #4aa3ff !important; }  /* Label Lantai Blue */
-
-/* Hover Effect yang lebih nyata di Dark Mode */
-body.dark-mode .card:hover {
-    box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important;
+/* === 6. BUTTONS & INPUTS === */
+.btn {
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.16px !important;
+    padding: 6px 14px !important;
 }
-.bg-warning-soft {
-    background-color: #fff9e6; /* Kuning sangat muda */
-    color: #856404; /* Teks cokelat tua agar kontras */
+.btn-primary {
+    background-color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+}
+.btn-primary:hover {
+    background-color: #0a4a87 !important;
+    border-color: #0a4a87 !important;
+    box-shadow: none !important;
+}
+.form-control,
+.form-select {
+    font-size: 13px !important;
+    border: 1px solid var(--border-color) !important;
+    border-bottom: 2px solid var(--border-color) !important;
+    background-color: var(--card-bg) !important;
+    color: var(--text-color) !important;
+    height: 36px !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+.form-control:focus,
+.form-select:focus {
+    border-bottom-color: var(--primary-color) !important;
+    box-shadow: 0 2px 0 0 var(--primary-color) !important; /* Carbon Signature bottom highlight */
+    outline: none !important;
+    background-color: var(--card-bg) !important;
+}
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select {
+    background-color: var(--bg-color) !important;
+    border-color: #393939 !important;
+    border-bottom-color: #393939 !important;
+}
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-select:focus {
+    border-bottom-color: var(--primary-color) !important;
+    background-color: var(--bg-color) !important;
+}
+
+/* === 7. TABLE DESIGN SYSTEM (Flat Minimalist) === */
+.table {
+    font-size: 13px !important;
+    border-collapse: collapse !important;
+}
+.table td {
+    vertical-align: middle !important;
+    border-color: var(--border-color) !important;
+    padding: 10px 12px !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+}
+.table th {
+    border-color: var(--border-color) !important;
+    padding: 12px 12px !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+}
+.table thead th {
+    background-color: var(--bg-color) !important;
+    color: var(--text-muted) !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.5px !important;
+    text-transform: uppercase !important;
+    border-bottom: 2px solid var(--border-color) !important;
+    white-space: nowrap;
+}
+[data-theme="dark"] .table thead th {
+    background-color: #262626 !important;
+    color: var(--text-muted) !important;
+    border-bottom-color: #393939 !important;
+}
+.table-bordered {
+    border: 1px solid var(--border-color) !important;
+}
+.table-hover tbody tr:hover {
+    background-color: rgba(15, 93, 166, 0.03) !important;
+}
+[data-theme="dark"] .table-hover tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+/* --- Table Left Border Indicator Roles --- */
+.table-row-complete > td:first-child {
+    border-left: 4px solid var(--success-color) !important;
+}
+.table-row-incomplete > td:first-child {
+    border-left: 4px solid var(--warning-color) !important;
+}
+
+/* === 8. CARD SYSTEM === */
+.card {
+    border: 1px solid var(--border-color) !important;
+    background-color: var(--card-bg) !important;
+    box-shadow: none !important;
+    margin-bottom: 20px;
+}
+.card-body {
+    padding: 16px !important;
+}
+.card-title {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    color: var(--text-color) !important;
+    letter-spacing: 0px !important;
+    margin-bottom: 16px !important;
+}
+
+/* === 9. STAT CARDS (IBM Carbon Stat Blocks) === */
+.stat-card {
+    border-left: 3px solid var(--border-color) !important;
+    transition: transform 0.15s ease, border-color 0.15s ease !important;
+}
+.stat-card:hover {
+    transform: translateY(-2px) !important;
+    border-color: var(--primary-color) !important;
+}
+.stat-card.h-100 {
+    border-left-color: var(--primary-color) !important;
+}
+.stat-card:nth-child(2),
+.stat-card-success {
+    border-left-color: var(--success-color) !important;
+}
+.stat-card-warning {
+    border-left-color: var(--warning-color) !important;
+}
+.stat-card-danger {
+    border-left-color: var(--danger-color) !important;
+}
+
+.stat-number {
+    font-size: 28px !important;
+    font-weight: 300 !important;
+    color: var(--text-color) !important;
+    letter-spacing: -0.5px !important;
+}
+.stat-label {
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.5px !important;
+    text-transform: uppercase !important;
+    color: var(--text-muted) !important;
+}
+.stat-icon {
+    border-radius: 0px !important;
+}
+
+/* === 10. BADGES SYSTEM (IBM Carbon Pill) === */
+.badge {
+    font-size: 10px !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.16px !important;
+    padding: 3px 8px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px;
+    border-radius: 9999px !important; /* Keep badges as pills */
+}
+.badge-success,
+.badge.bg-success-subtle,
+.badge.bg-success {
+    background-color: #defbe6 !important;
+    color: #044317 !important;
+    border: 1px solid #198038 !important;
+}
+.badge-warning,
+.badge.bg-warning-subtle,
+.badge.bg-warning {
+    background-color: #fdf7d4 !important;
+    color: #5c4a00 !important;
+    border: 1px solid #b28600 !important;
+}
+.badge-danger,
+.badge.bg-danger-subtle,
+.badge.bg-danger {
+    background-color: #fff1f1 !important;
+    color: #750e13 !important;
+    border: 1px solid #da1e28 !important;
+}
+.badge-primary,
+.badge.bg-primary-subtle,
+.badge.bg-primary {
+    background-color: #dce9f8 !important;
+    color: #073a6b !important;
+    border: 1px solid #0f5da6 !important;
+}
+.badge-info,
+.badge.bg-info-subtle,
+.badge.bg-info {
+    background-color: #edf5ff !important;
+    color: #002d9c !important;
+    border: 1px solid #0043ce !important;
+}
+.badge-secondary,
+.badge.bg-secondary-subtle,
+.badge.bg-secondary {
+    background-color: #e0e0e0 !important;
+    color: #525252 !important;
+    border: 1px solid #c6c6c6 !important;
+}
+
+[data-theme="dark"] .badge-success,
+[data-theme="dark"] .badge.bg-success-subtle,
+[data-theme="dark"] .badge.bg-success {
+    background-color: #0d3a20 !important;
+    color: #a7f0ba !important;
+    border-color: #198038 !important;
+}
+[data-theme="dark"] .badge-warning,
+[data-theme="dark"] .badge.bg-warning-subtle,
+[data-theme="dark"] .badge.bg-warning {
+    background-color: #3b2600 !important;
+    color: #f1cd81 !important;
+    border-color: #b28600 !important;
+}
+[data-theme="dark"] .badge-danger,
+[data-theme="dark"] .badge.bg-danger-subtle,
+[data-theme="dark"] .badge.bg-danger {
+    background-color: #521216 !important;
+    color: #ffb3b8 !important;
+    border-color: #da1e28 !important;
+}
+
+/* === 11. MONOSPACE FORMATTING === */
+.col-rm,
+.col-bed,
+.col-billing,
+.text-mono {
+    font-family: var(--font-mono) !important;
+    font-size: 12px !important;
+    letter-spacing: 0.2px !important;
 }

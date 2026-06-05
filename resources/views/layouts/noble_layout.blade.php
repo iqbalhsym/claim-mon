@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=Overpass:wght@300;400;600;700;800&family=Roboto:wght@300;400;500;700&display=swap"
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Overpass:wght@300;400;600;700;800&family=Roboto:wght@300;400;500;700&display=swap"
     rel="stylesheet">
 
   <!-- Bootstrap 5 -->
@@ -21,7 +21,7 @@
 
   <style>
     :root {
-      --primary-color: #6571ff;
+      --primary-color: #0F5DA6;
       --secondary-color: #7987a1;
       --success-color: #05a34a;
       --info-color: #66d1d1;
@@ -33,7 +33,7 @@
       --sidebar-bg: #ffffff;
       --sidebar-color: #000000;
       --sidebar-hover-bg: #f4f5f7;
-      --sidebar-hover-color: #6571ff;
+      --sidebar-hover-color: #0F5DA6;
       --header-bg: #ffffff;
       --card-bg: #ffffff;
       --text-color: #000000;
@@ -715,7 +715,7 @@
     }
     [data-theme="dark"] .tab-type-btn.active {
       color: var(--primary-color);
-      background: rgba(101, 113, 255, 0.1);
+      background: rgba(15, 93, 166, 0.1);
     }
     [data-theme="dark"] .badge.bg-secondary {
       background-color: #2b3c6e !important;
@@ -741,6 +741,7 @@
       color: #8899bb !important;
     }
   </style>
+  <link rel="stylesheet" href="{{ asset('css/rsui-theme.css') }}?v={{ time() }}">
   @yield('css')
 </head>
 
@@ -834,7 +835,7 @@
               <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="profileDropdown" role="button"
                 data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                 <img
-                  src="https://ui-avatars.com/api/?name={{ urlencode(auth()->user()->name ?? 'User') }}&background=6571ff&color=fff"
+                  src="https://ui-avatars.com/api/?name={{ urlencode(auth()->user()->name ?? 'User') }}&background=0F5DA6&color=fff"
                   alt="profile">
                 <span class="ms-2 d-none d-md-inline-block">{{ auth()->user()->name ?? 'Administrator' }}</span>
               </a>
@@ -842,7 +843,7 @@
                 <div class="dropdown-header d-flex flex-column align-items-center mb-2">
                   <div class="figure mb-2">
                     <img
-                      src="https://ui-avatars.com/api/?name={{ urlencode(auth()->user()->name ?? 'User') }}&background=6571ff&color=fff"
+                      src="https://ui-avatars.com/api/?name={{ urlencode(auth()->user()->name ?? 'User') }}&background=0F5DA6&color=fff"
                       alt="" class="rounded-circle" width="60" height="60">
                   </div>
                   <div class="info text-center">

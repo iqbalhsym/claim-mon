@@ -28,7 +28,7 @@
   }
   .stat-icon svg { width: 24px; height: 24px; }
 
-  .stat-icon-primary { background: rgba(101,113,255,0.12); color: #6571ff; }
+  .stat-icon-primary { background: rgba(15, 93, 166, 0.12); color: #0F5DA6; }
   .stat-icon-success { background: rgba(5,163,74,0.12);   color: #05a34a; }
   .stat-icon-warning { background: rgba(251,188,6,0.12);  color: #fbbc06; }
   .stat-icon-danger  { background: rgba(255,51,102,0.12); color: #ff3366; }
@@ -354,7 +354,7 @@
         @forelse($byGuarantor as $item)
           @php
             $pct = $totalRecord > 0 ? round(($item->total / $totalRecord) * 100) : 0;
-            $colors = ['#6571ff','#05a34a','#fbbc06','#ff3366','#66d1d1'];
+            $colors = ['#0F5DA6','#05a34a','#fbbc06','#ff3366','#66d1d1'];
             $color  = $colors[$loop->index % count($colors)];
           @endphp
           <div class="guarantor-item">
@@ -422,11 +422,11 @@
             </thead>
             <tbody>
               @forelse($recentRecords as $rec)
-              <tr>
-                <td class="text-muted">{{ $rec->billing_no ?: '-' }}</td>
+              <tr class="{{ $rec->is_rm_lengkap ? 'table-row-complete' : 'table-row-incomplete' }}">
+                <td class="text-muted text-mono">{{ $rec->billing_no ?: '-' }}</td>
                 <td>
                   <div class="fw-semibold">{{ $rec->nama_pasien ?: '-' }}</div>
-                  <div class="text-muted" style="font-size:0.75rem">No RM: {{ $rec->no_rm }}</div>
+                  <div class="text-muted" style="font-size:0.75rem">No RM: <span class="text-mono">{{ $rec->no_rm }}</span></div>
                 </td>
                 <td>{{ $rec->guarantor ?: '-' }}</td>
                 <td>{{ $rec->ruangan ?: $rec->ruangan_afya ?: '-' }}</td>

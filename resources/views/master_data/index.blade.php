@@ -18,7 +18,7 @@
 .tab-type-btn.active {
     color: var(--primary-color);
     border-bottom-color: var(--primary-color);
-    background: rgba(101,113,255,0.06);
+    background: rgba(15, 93, 166, 0.06);
 }
 .inline-edit-form input {
     border: 1px solid var(--border-color);

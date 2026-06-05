@@ -49,7 +49,7 @@
   .filter-select:focus {
     border-color: var(--primary-color);
     outline: none;
-    box-shadow: 0 0 0 3px rgba(101,113,255,0.15);
+    box-shadow: 0 0 0 3px rgba(15, 93, 166, 0.15);
   }
 
   .stat-mini-card {
@@ -140,7 +140,7 @@
   .info-kota-table tr:last-child td { border-bottom: none; }
 
   .badge-count {
-    background: rgba(101,113,255,0.12);
+    background: rgba(15, 93, 166, 0.12);
     color: var(--primary-color);
     border-radius: 20px;
     padding: 3px 10px;
@@ -940,7 +940,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Palet warna yang beragam
   var palette = [
-    '#6571ff','#05a34a','#fbbc06','#ff3366','#66d1d1',
+    '#0F5DA6','#05a34a','#fbbc06','#ff3366','#66d1d1',
     '#8b5cf6','#f97316','#06b6d4','#ec4899','#84cc16',
     '#14b8a6','#f59e0b','#3b82f6','#ef4444','#a855f7',
     '#10b981','#eab308','#0ea5e9','#d946ef','#22c55e'
@@ -1089,11 +1089,11 @@ document.addEventListener('DOMContentLoaded', function() {
           label: 'Total',
           data: bulanTotal,
           type: 'line',
-          borderColor: '#6571ff',
-          backgroundColor: 'rgba(101,113,255,0.1)',
+          borderColor: '#0F5DA6',
+          backgroundColor: 'rgba(15, 93, 166, 0.1)',
           borderWidth: 2,
           pointRadius: 4,
-          pointBackgroundColor: '#6571ff',
+          pointBackgroundColor: '#0F5DA6',
           fill: false,
           tension: 0.3,
           yAxisID: 'y',
@@ -1158,7 +1158,7 @@ document.addEventListener('DOMContentLoaded', function() {
       labels: swLabels,
       datasets: [{
         data: swTotals,
-        backgroundColor: ['#6571ff', '#cbd5e1', '#05a34a', '#fbbc06'],
+        backgroundColor: ['#0F5DA6', '#cbd5e1', '#05a34a', '#fbbc06'],
         borderWidth: 2,
         borderColor: isDark ? '#15234b' : '#ffffff'
       }]
@@ -1247,7 +1247,7 @@ document.addEventListener('DOMContentLoaded', function() {
       datasets: [{
         label: 'Jumlah Pasien',
         data: tcTotals,
-        backgroundColor: '#6571ff',
+        backgroundColor: '#0F5DA6',
         borderRadius: 4
       }]
     },
@@ -1455,7 +1455,7 @@ document.addEventListener('DOMContentLoaded', function() {
       labels: sdLabels,
       datasets: [{
         data: sdTotals,
-        backgroundColor: ['#05a34a', '#3b82f6', '#cbd5e1', '#fbbc06', '#6571ff', '#ff3366', '#a855f7'],
+        backgroundColor: ['#05a34a', '#3b82f6', '#cbd5e1', '#fbbc06', '#0F5DA6', '#ff3366', '#a855f7'],
         borderWidth: 2,
         borderColor: isDark ? '#15234b' : '#ffffff'
       }]

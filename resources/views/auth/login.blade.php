@@ -6,21 +6,22 @@
     <title>Login - Silacak RSUI</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Overpass:wght@300;400;600;700;800&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ asset('css/rsui-theme.css') }}?v={{ time() }}">
     <!-- Feather Icons -->
     <script src="https://unpkg.com/feather-icons"></script>
 
     <style>
         :root {
-            --primary-color: #6571ff;
-            --body-font: 'Roboto', sans-serif;
-            --heading-font: 'Overpass', sans-serif;
+            --primary-color: #0F5DA6;
+            --body-font: 'IBM Plex Sans', sans-serif;
+            --heading-font: 'IBM Plex Sans', sans-serif;
         }
 
         body {
             font-family: var(--body-font);
-            background-color: #f9fafb;
-            color: #000;
+            background-color: var(--bg-color);
+            color: var(--text-color);
         }
 
         .auth-wrapper {
@@ -36,10 +37,11 @@
         }
 
         .auth-card {
-            box-shadow: 0 0 20px rgba(0,0,0,0.05);
-            border: none;
-            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(15, 93, 166, 0.08);
+            border: 1px solid var(--border-color);
+            border-radius: 0px;
             overflow: hidden;
+            background-color: var(--card-bg);
         }
 
         .noble-logo {
@@ -56,15 +58,19 @@
         }
 
         .form-control {
-            border-radius: 4px;
+            border-radius: 0px;
             padding: 0.75rem 1rem;
-            border: 1px solid #e8ebf1;
+            border: 1px solid var(--border-color);
+            border-bottom: 2px solid var(--border-color);
             font-size: 0.875rem;
+            background-color: var(--card-bg);
+            color: var(--text-color);
         }
 
         .form-control:focus {
-            border-color: var(--primary-color);
-            box-shadow: none;
+            border-bottom-color: var(--primary-color);
+            box-shadow: 0 2px 0 0 var(--primary-color);
+            background-color: var(--card-bg);
         }
         
         .btn-primary {
@@ -72,12 +78,13 @@
             border-color: var(--primary-color);
             padding: 0.75rem;
             font-weight: 500;
-            border-radius: 4px;
+            border-radius: 0px;
+            color: #ffffff;
         }
         
         .btn-primary:hover {
-            background-color: #4e5bf2;
-            border-color: #4e5bf2;
+            background-color: #0a4a87;
+            border-color: #0a4a87;
         }
 
         .form-label {
