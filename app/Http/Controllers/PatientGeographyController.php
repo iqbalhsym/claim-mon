@@ -306,9 +306,77 @@ class PatientGeographyController extends Controller
         }
         $monthlyJawaBarat = array_values($monthlyJawaBaratFormatted);
 
+        // --- NEW DKI JAKARTA CHARTS DATA ---
+
+        // Sebaran & Penjaminan Pasien Wilayah DKI Jakarta
+        $sebaranDki = PatientGeography::where('provinsi', 'DKI Jakarta')
+            ->selectRaw("
+                CASE 
+                    WHEN kabupaten_kota = 'Kota Administrasi Jakarta Selatan' THEN 'Jakarta Selatan'
+                    WHEN kabupaten_kota = 'Kota Administrasi Jakarta Timur' THEN 'Jakarta Timur'
+                    WHEN kabupaten_kota = 'Kota Administrasi Jakarta Pusat' THEN 'Jakarta Pusat'
+                    WHEN kabupaten_kota = 'Kota Administrasi Jakarta Barat' THEN 'Jakarta Barat'
+                    WHEN kabupaten_kota = 'Kota Administrasi Jakarta Utara' THEN 'Jakarta Utara'
+                    WHEN kabupaten_kota = 'Kabupaten Administrasi Kepulauan Seribu' THEN 'Kepulauan Seribu'
+                    ELSE 'Lainnya'
+                END as kota_group,
+                count(*) as total,
+                SUM(CASE WHEN kat_guarantor = 'JKN' THEN 1 ELSE 0 END) as jkn,
+                SUM(CASE WHEN kat_guarantor != 'JKN' OR kat_guarantor IS NULL THEN 1 ELSE 0 END) as non_jkn
+            ")
+            ->groupBy('kota_group')
+            ->orderByDesc('total')
+            ->get();
+
+        // Pengunjung Per Bulan Wilayah DKI Jakarta
+        $monthlyDkiRaw = PatientGeography::where('provinsi', 'DKI Jakarta')
+            ->whereBetween('tanggal_kunjungan', ['2025-01-01', '2026-03-31'])
+            ->selectRaw("
+                TO_CHAR(tanggal_kunjungan, 'YYYY-MM') as month_key,
+                CASE 
+                    WHEN kabupaten_kota = 'Kota Administrasi Jakarta Selatan' THEN 'Jakarta Selatan'
+                    WHEN kabupaten_kota = 'Kota Administrasi Jakarta Timur' THEN 'Jakarta Timur'
+                    WHEN kabupaten_kota = 'Kota Administrasi Jakarta Pusat' THEN 'Jakarta Pusat'
+                    WHEN kabupaten_kota = 'Kota Administrasi Jakarta Barat' THEN 'Jakarta Barat'
+                    WHEN kabupaten_kota = 'Kota Administrasi Jakarta Utara' THEN 'Jakarta Utara'
+                    WHEN kabupaten_kota = 'Kabupaten Administrasi Kepulauan Seribu' THEN 'Kepulauan Seribu'
+                    ELSE 'Lainnya'
+                END as kota_group,
+                count(*) as total
+            ")
+            ->groupBy('month_key', 'kota_group')
+            ->orderBy('month_key')
+            ->get();
+
+        // Format data bulanan DKI Jakarta ke array berindeks bulan
+        $monthlyDkiFormatted = [];
+        $current = $startDate->copy();
+        while ($current->lte($endDate)) {
+            $monthKey = $current->format('Y-m');
+            $monthlyDkiFormatted[$monthKey] = [
+                'label' => $current->translatedFormat('M Y'),
+                'Jakarta Selatan' => 0,
+                'Jakarta Timur' => 0,
+                'Jakarta Pusat' => 0,
+                'Jakarta Barat' => 0,
+                'Jakarta Utara' => 0,
+                'Kepulauan Seribu' => 0,
+                'Lainnya' => 0,
+            ];
+            $current->addMonth();
+        }
+
+        foreach ($monthlyDkiRaw as $row) {
+            if (isset($monthlyDkiFormatted[$row->month_key])) {
+                $monthlyDkiFormatted[$row->month_key][$row->kota_group] = $row->total;
+            }
+        }
+        $monthlyDki = array_values($monthlyDkiFormatted);
+
         return view('patient_geography.index', compact(
             'byProvinsi', 'totalPasien', 'totalBpjs', 'totalNonBpjs', 'totalProvinsi', 'provinsiList',
-            'perBulan', 'sebaranWilayah', 'topCities', 'sebaranJawaBarat', 'monthlyJawaBarat'
+            'perBulan', 'sebaranWilayah', 'topCities', 'sebaranJawaBarat', 'monthlyJawaBarat',
+            'sebaranDki', 'monthlyDki'
         ));
     }
 

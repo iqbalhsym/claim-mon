@@ -580,6 +580,48 @@
   </div>
 </div>
 
+{{-- ===== ROW 5: DETAIL WILAYAH DKI JAKARTA ===== --}}
+<div class="row g-3 mb-4 fade-in-up" style="animation-delay:350ms">
+  {{-- Sebaran Pasien Wilayah DKI Jakarta --}}
+  <div class="col-md-4">
+    <div class="prov-table-wrap h-100">
+      <div class="prov-table-head">
+        <i data-feather="pie-chart" style="width:16px;height:16px;color:var(--warning-color)"></i>
+        Sebaran Pasien Wilayah DKI Jakarta
+      </div>
+      <div style="padding:16px; height:280px; display:flex; justify-content:center; align-items:center;">
+        <canvas id="sebaranDkiChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  {{-- Penjaminan Pasien Wilayah DKI Jakarta --}}
+  <div class="col-md-4">
+    <div class="prov-table-wrap h-100">
+      <div class="prov-table-head">
+        <i data-feather="bar-chart-2" style="width:16px;height:16px;color:var(--danger-color)"></i>
+        Penjaminan Pasien Wilayah DKI Jakarta
+      </div>
+      <div style="padding:16px; height:280px;">
+        <canvas id="penjaminanDkiChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  {{-- Pengunjung Per Bulan Wilayah DKI Jakarta --}}
+  <div class="col-md-4">
+    <div class="prov-table-wrap h-100">
+      <div class="prov-table-head">
+        <i data-feather="trending-up" style="width:16px;height:16px;color:var(--primary-color)"></i>
+        Pengunjung Per Bulan Wilayah DKI Jakarta
+      </div>
+      <div style="padding:16px; height:280px;">
+        <canvas id="pengunjungDkiChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade" id="importGeoModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
@@ -1366,6 +1408,200 @@ document.addEventListener('DOMContentLoaded', function() {
           data: mjbOthers,
           borderColor: '#64748b',
           backgroundColor: 'rgba(100,116,139,0.05)',
+          borderWidth: 2,
+          pointRadius: 3,
+          fill: false,
+          tension: 0.3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: isDark ? '#e2e8f0' : '#0b132b', font: { size: 9 } }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: isDark ? '#8899bb' : '#7987a1', font: { size: 8 } },
+          grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }
+        },
+        y: {
+          beginAtZero: true,
+          ticks: { color: isDark ? '#8899bb' : '#7987a1', font: { size: 9 } },
+          grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }
+        }
+      }
+    }
+  });
+
+  // ==========================================
+  // DKI JAKARTA CHARTS INITIALIZATION
+  // ==========================================
+  
+  // 1. Sebaran Pasien Wilayah DKI Jakarta (Pie Chart)
+  const sebaranDkiData = @json($sebaranDki);
+  const sdLabels = sebaranDkiData.map(d => d.kota_group);
+  const sdTotals = sebaranDkiData.map(d => d.total);
+  
+  const ctxSd = document.getElementById('sebaranDkiChart').getContext('2d');
+  new Chart(ctxSd, {
+    type: 'pie',
+    data: {
+      labels: sdLabels,
+      datasets: [{
+        data: sdTotals,
+        backgroundColor: ['#05a34a', '#3b82f6', '#cbd5e1', '#fbbc06', '#6571ff', '#ff3366', '#a855f7'],
+        borderWidth: 2,
+        borderColor: isDark ? '#15234b' : '#ffffff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: {
+            color: isDark ? '#e2e8f0' : '#0b132b',
+            font: { size: 10 }
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+              const pct = total > 0 ? Math.round(ctx.parsed / total * 100) : 0;
+              return ` ${ctx.label}: ${ctx.parsed} (${pct}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // 2. Penjaminan Pasien Wilayah DKI Jakarta (Grouped Horizontal Bar Chart)
+  const sdJkn = sebaranDkiData.map(d => d.jkn);
+  const sdNonJkn = sebaranDkiData.map(d => d.non_jkn);
+
+  const ctxPd = document.getElementById('penjaminanDkiChart').getContext('2d');
+  new Chart(ctxPd, {
+    type: 'bar',
+    data: {
+      labels: sdLabels,
+      datasets: [
+        {
+          label: 'JKN',
+          data: sdJkn,
+          backgroundColor: '#10b981',
+          borderRadius: 4
+        },
+        {
+          label: 'Non JKN',
+          data: sdNonJkn,
+          backgroundColor: '#3b82f6',
+          borderRadius: 4
+        }
+      ]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { color: isDark ? '#e2e8f0' : '#0b132b', font: { size: 10 } }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: isDark ? '#8899bb' : '#7987a1', font: { size: 9 } },
+          grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }
+        },
+        y: {
+          ticks: { color: isDark ? '#8899bb' : '#7987a1', font: { size: 10 } },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+
+  // 3. Pengunjung Per Bulan Wilayah DKI Jakarta (Line Chart)
+  const monthlyDkiData = @json($monthlyDki);
+  const mdLabels = monthlyDkiData.map(d => d.label);
+  const mdSelatan = monthlyDkiData.map(d => d['Jakarta Selatan']);
+  const mdTimur = monthlyDkiData.map(d => d['Jakarta Timur']);
+  const mdPusat = monthlyDkiData.map(d => d['Jakarta Pusat']);
+  const mdBarat = monthlyDkiData.map(d => d['Jakarta Barat']);
+  const mdUtara = monthlyDkiData.map(d => d['Jakarta Utara']);
+  const mdSeribu = monthlyDkiData.map(d => d['Kepulauan Seribu']);
+
+  const ctxMdd = document.getElementById('pengunjungDkiChart').getContext('2d');
+  new Chart(ctxMdd, {
+    type: 'line',
+    data: {
+      labels: mdLabels,
+      datasets: [
+        {
+          label: 'Jakarta Selatan',
+          data: mdSelatan,
+          borderColor: '#05a34a',
+          backgroundColor: 'rgba(5,163,74,0.05)',
+          borderWidth: 2,
+          pointRadius: 3,
+          fill: false,
+          tension: 0.3
+        },
+        {
+          label: 'Jakarta Timur',
+          data: mdTimur,
+          borderColor: '#3b82f6',
+          backgroundColor: 'rgba(59,130,246,0.05)',
+          borderWidth: 2,
+          pointRadius: 3,
+          fill: false,
+          tension: 0.3
+        },
+        {
+          label: 'Jakarta Pusat',
+          data: mdPusat,
+          borderColor: '#fbbc06',
+          backgroundColor: 'rgba(251,188,6,0.05)',
+          borderWidth: 2,
+          pointRadius: 3,
+          fill: false,
+          tension: 0.3
+        },
+        {
+          label: 'Jakarta Barat',
+          data: mdBarat,
+          borderColor: '#64748b',
+          backgroundColor: 'rgba(100,116,139,0.05)',
+          borderWidth: 2,
+          pointRadius: 3,
+          fill: false,
+          tension: 0.3
+        },
+        {
+          label: 'Jakarta Utara',
+          data: mdUtara,
+          borderColor: '#ff3366',
+          backgroundColor: 'rgba(255,51,102,0.05)',
+          borderWidth: 2,
+          pointRadius: 3,
+          fill: false,
+          tension: 0.3
+        },
+        {
+          label: 'Kepulauan Seribu',
+          data: mdSeribu,
+          borderColor: '#a855f7',
+          backgroundColor: 'rgba(168,85,247,0.05)',
           borderWidth: 2,
           pointRadius: 3,
           fill: false,
