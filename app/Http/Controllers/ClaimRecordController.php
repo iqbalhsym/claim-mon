@@ -13,6 +13,7 @@ class ClaimRecordController extends Controller
     public function index(Request $request)
     {
         $search = $request->query('search');
+        $severity = $request->query('severity');
 
         $query = ClaimRecord::query();
 
@@ -25,10 +26,15 @@ class ClaimRecordController extends Controller
             });
         }
 
+        if ($severity) {
+            $query->where('severity', $severity);
+        }
+
+        $totalFiltered = $query->count();
         $records = $query->orderBy('discharge_date', 'desc')->paginate(50);
         $totalRecords = ClaimRecord::count();
 
-        return view('claim_records.index', compact('records', 'totalRecords', 'search'));
+        return view('claim_records.index', compact('records', 'totalRecords', 'totalFiltered', 'search', 'severity'));
     }
 
     public function import(Request $request)
@@ -116,34 +122,39 @@ class ClaimRecordController extends Controller
 
     public function dpjpReport(Request $request)
     {
+        $selectedMonth = $request->query('month');
+
         $driver = DB::connection()->getDriverName();
-        if ($driver === 'pgsql') {
-            $stats = ClaimRecord::selectRaw("
-                to_char(discharge_date, 'YYYY-MM') as month_key,
-                dpjp,
-                count(*) as patient_count,
-                sum(total_tarif) as total_total_tarif,
-                sum(tarif_rs) as total_tarif_rs,
-                sum(total_tarif - tarif_rs) as total_selisih
-            ")
-            ->groupBy('month_key', 'dpjp')
+        $monthExpr = $driver === 'pgsql'
+            ? "to_char(discharge_date, 'YYYY-MM')"
+            : "strftime('%Y-%m', discharge_date)";
+
+        // Get available months for dropdown filter
+        $availableMonths = ClaimRecord::selectRaw("$monthExpr as month_key")
+            ->whereNotNull('discharge_date')
+            ->groupBy('month_key')
             ->orderBy('month_key', 'desc')
-            ->orderBy('dpjp', 'asc')
-            ->get();
-        } else {
-            $stats = ClaimRecord::selectRaw("
-                strftime('%Y-%m', discharge_date) as month_key,
-                dpjp,
-                count(*) as patient_count,
-                sum(total_tarif) as total_total_tarif,
-                sum(tarif_rs) as total_tarif_rs,
-                sum(total_tarif - tarif_rs) as total_selisih
-            ")
-            ->groupBy('month_key', 'dpjp')
-            ->orderBy('month_key', 'desc')
-            ->orderBy('dpjp', 'asc')
-            ->get();
+            ->pluck('month_key')
+            ->filter()
+            ->values();
+
+        $query = ClaimRecord::selectRaw("
+            $monthExpr as month_key,
+            dpjp,
+            count(*) as patient_count,
+            sum(total_tarif) as total_total_tarif,
+            sum(tarif_rs) as total_tarif_rs,
+            sum(total_tarif - tarif_rs) as total_selisih
+        ");
+
+        if ($selectedMonth) {
+            $query->whereRaw("$monthExpr = ?", [$selectedMonth]);
         }
+
+        $stats = $query->groupBy('month_key', 'dpjp')
+            ->orderBy('month_key', 'desc')
+            ->orderBy('dpjp', 'asc')
+            ->get();
 
         // Calculate grand totals
         $grandTotalPatients = $stats->sum('patient_count');
@@ -156,8 +167,247 @@ class ClaimRecordController extends Controller
             'grandTotalPatients',
             'grandTotalTarif',
             'grandTotalRs',
-            'grandTotalSelisih'
+            'grandTotalSelisih',
+            'availableMonths',
+            'selectedMonth'
         ));
+    }
+
+    public function exportDpjp(Request $request)
+    {
+        $selectedMonth = $request->query('month');
+
+        $driver = DB::connection()->getDriverName();
+        $monthExpr = $driver === 'pgsql'
+            ? "to_char(discharge_date, 'YYYY-MM')"
+            : "strftime('%Y-%m', discharge_date)";
+
+        $query = ClaimRecord::selectRaw("
+            $monthExpr as month_key,
+            dpjp,
+            count(*) as patient_count,
+            sum(total_tarif) as total_total_tarif,
+            sum(tarif_rs) as total_tarif_rs,
+            sum(total_tarif - tarif_rs) as total_selisih
+        ");
+
+        if ($selectedMonth) {
+            $query->whereRaw("$monthExpr = ?", [$selectedMonth]);
+        }
+
+        $stats = $query->groupBy('month_key', 'dpjp')
+            ->orderBy('month_key', 'desc')
+            ->orderBy('dpjp', 'asc')
+            ->get();
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Laporan DPJP');
+
+        // Title Block
+        $sheet->setCellValue('A1', 'LAPORAN KINERJA DPJP (DOKTER UTAMA)');
+        $sheet->getStyle('A1')->getFont()->setSize(14)->setBold(true);
+
+        $periodeText = 'Semua Bulan/Tahun';
+        if ($selectedMonth) {
+            try {
+                $carbon = Carbon::createFromFormat('Y-m', $selectedMonth);
+                $periodeText = 'Bulan: ' . $carbon->translatedFormat('F Y');
+            } catch (\Exception $e) {
+                $periodeText = 'Bulan: ' . $selectedMonth;
+            }
+        }
+        $sheet->setCellValue('A2', $periodeText);
+        $sheet->getStyle('A2')->getFont()->setItalic(true);
+
+        // Headers
+        $headers = [
+            'A4' => 'No',
+            'B4' => 'Bulan',
+            'C4' => 'Nama Dokter (DPJP)',
+            'D4' => 'Jumlah Pasien',
+            'E4' => 'Total Tarif (Rp)',
+            'F4' => 'Tarif RS (Rp)',
+            'G4' => 'Selisih (Rp)'
+        ];
+
+        foreach ($headers as $cell => $text) {
+            $sheet->setCellValue($cell, $text);
+            $sheet->getStyle($cell)->getFont()->setBold(true);
+            $sheet->getStyle($cell)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle($cell)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('EAEAEA');
+        }
+
+        $rowIdx = 5;
+        $no = 1;
+
+        $grandTotalPatients = 0;
+        $grandTotalTarif = 0;
+        $grandTotalRs = 0;
+        $grandTotalSelisih = 0;
+
+        foreach ($stats as $row) {
+            try {
+                $carbon = Carbon::createFromFormat('Y-m', $row->month_key);
+                $monthName = $carbon->translatedFormat('F Y');
+            } catch (\Exception $e) {
+                $monthName = $row->month_key;
+            }
+
+            $sheet->setCellValue('A' . $rowIdx, $no++);
+            $sheet->setCellValue('B' . $rowIdx, $monthName);
+            $sheet->setCellValue('C' . $rowIdx, $row->dpjp ?: 'Tanpa Nama Dokter');
+            $sheet->setCellValue('D' . $rowIdx, $row->patient_count);
+            $sheet->setCellValue('E' . $rowIdx, $row->total_total_tarif);
+            $sheet->setCellValue('F' . $rowIdx, $row->total_tarif_rs);
+            $sheet->setCellValue('G' . $rowIdx, $row->total_selisih);
+
+            // Alignments & formats
+            $sheet->getStyle('A' . $rowIdx)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('D' . $rowIdx)->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle('E' . $rowIdx)->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle('F' . $rowIdx)->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle('G' . $rowIdx)->getNumberFormat()->setFormatCode('#,##0');
+
+            $grandTotalPatients += $row->patient_count;
+            $grandTotalTarif += $row->total_total_tarif;
+            $grandTotalRs += $row->total_tarif_rs;
+            $grandTotalSelisih += $row->total_selisih;
+
+            $rowIdx++;
+        }
+
+        // Grand Total row
+        $sheet->setCellValue('A' . $rowIdx, '');
+        $sheet->setCellValue('B' . $rowIdx, '');
+        $sheet->setCellValue('C' . $rowIdx, 'Grand Total');
+        $sheet->setCellValue('D' . $rowIdx, $grandTotalPatients);
+        $sheet->setCellValue('E' . $rowIdx, $grandTotalTarif);
+        $sheet->setCellValue('F' . $rowIdx, $grandTotalRs);
+        $sheet->setCellValue('G' . $rowIdx, $grandTotalSelisih);
+
+        $sheet->getStyle('C' . $rowIdx . ':G' . $rowIdx)->getFont()->setBold(true);
+        $sheet->getStyle('D' . $rowIdx)->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle('E' . $rowIdx)->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle('F' . $rowIdx)->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle('G' . $rowIdx)->getNumberFormat()->setFormatCode('#,##0');
+
+        // Auto column width
+        foreach (range('A', 'G') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Xlsx');
+        
+        $monthStr = 'semua_bulan';
+        if ($selectedMonth) {
+            try {
+                $carbon = Carbon::createFromFormat('Y-m', $selectedMonth);
+                $monthStr = strtolower($carbon->translatedFormat('F_Y'));
+            } catch (\Exception $e) {
+                $monthStr = strtolower(str_replace('-', '_', $selectedMonth));
+            }
+        }
+        $fileName = 'laporan_dpjp_' . $monthStr . '.xlsx';
+
+        return response()->stream(
+            function() use ($writer) {
+                $writer->save('php://output');
+            },
+            200,
+            [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+                'Cache-Control' => 'max-age=0',
+            ]
+        );
+    }
+
+    public function export(Request $request)
+    {
+        $search = $request->query('search');
+        $severity = $request->query('severity');
+
+        $query = ClaimRecord::query();
+
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('nama_pasien', 'ilike', "%{$search}%")
+                  ->orWhere('no_rm', 'ilike', "%{$search}%")
+                  ->orWhere('inacbg', 'ilike', "%{$search}%")
+                  ->orWhere('dpjp', 'ilike', "%{$search}%");
+            });
+        }
+
+        if ($severity) {
+            $query->where('severity', $severity);
+        }
+
+        $records = $query->orderBy('discharge_date', 'desc')->get();
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Data Klaim');
+
+        // Headers
+        $headers = [
+            'A1' => 'No. RM',
+            'B1' => 'Nama Pasien',
+            'C1' => 'Tanggal Pulang',
+            'D1' => 'INACBG',
+            'E1' => 'Severity',
+            'F1' => 'DPJP (Dokter)',
+            'G1' => 'Tarif RS',
+            'H1' => 'Total Tarif',
+            'I1' => 'Selisih'
+        ];
+
+        foreach ($headers as $cell => $text) {
+            $sheet->setCellValue($cell, $text);
+            $sheet->getStyle($cell)->getFont()->setBold(true);
+        }
+
+        $row = 2;
+        foreach ($records as $rec) {
+            $sheet->setCellValue('A' . $row, $rec->no_rm);
+            $sheet->setCellValue('B' . $row, $rec->nama_pasien);
+            $sheet->setCellValue('C' . $row, $rec->discharge_date ? $rec->discharge_date->format('Y-m-d') : '-');
+            $sheet->setCellValue('D' . $row, $rec->inacbg);
+            $sheet->setCellValue('E' . $row, $rec->severity);
+            $sheet->setCellValue('F' . $row, $rec->dpjp);
+            $sheet->setCellValue('G' . $row, $rec->tarif_rs);
+            $sheet->setCellValue('H' . $row, $rec->total_tarif);
+            $sheet->setCellValue('I' . $row, $rec->selisih);
+
+            // Format numeric columns
+            $sheet->getStyle('G' . $row)->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle('H' . $row)->getNumberFormat()->setFormatCode('#,##0');
+            $sheet->getStyle('I' . $row)->getNumberFormat()->setFormatCode('#,##0');
+
+            $row++;
+        }
+
+        // Auto width
+        foreach (range('A', 'I') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        $writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Xlsx');
+
+        $severityStr = $severity ? '_severity_' . strtolower($severity) : '';
+        $fileName = 'data_klaim_export' . $severityStr . '_' . date('Ymd_His') . '.xlsx';
+
+        return response()->stream(
+            function() use ($writer) {
+                $writer->save('php://output');
+            },
+            200,
+            [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+                'Cache-Control' => 'max-age=0',
+            ]
+        );
     }
 
     private function parseExcelDate($value): ?Carbon

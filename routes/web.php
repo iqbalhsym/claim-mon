@@ -23,12 +23,15 @@ Route::middleware(['auth'])->group(function () {
 
     // --- DASHBOARD ---
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('dashboard/export', [DashboardController::class, 'exportExcel'])->name('dashboard.export');
 
     // --- DATA KLAIM ---
     Route::get('claim-records', [ClaimRecordController::class, 'index'])->name('claim-records.index');
+    Route::get('claim-records/export', [ClaimRecordController::class, 'export'])->name('claim-records.export');
     Route::post('claim-records/import', [ClaimRecordController::class, 'import'])->name('claim-records.import');
     Route::delete('claim-records/truncate', [ClaimRecordController::class, 'truncate'])->name('claim-records.truncate');
     Route::get('dpjp-report', [ClaimRecordController::class, 'dpjpReport'])->name('claim-records.dpjp');
+    Route::get('dpjp-report/export', [ClaimRecordController::class, 'exportDpjp'])->name('claim-records.dpjp.export');
 
     // --- MANAJEMEN AKUN (Hanya Administrator) ---
     Route::middleware(['role:administrator'])->prefix('users')->name('users.')->group(function () {

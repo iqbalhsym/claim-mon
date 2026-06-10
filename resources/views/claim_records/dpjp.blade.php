@@ -52,6 +52,10 @@
     border-color: var(--border-color) !important;
     color: var(--text-color) !important;
   }
+  #dpjpTable th {
+    cursor: pointer;
+    user-select: none;
+  }
 </style>
 @endsection
 
@@ -65,6 +69,52 @@
         <li class="breadcrumb-item active" aria-current="page">Laporan DPJP</li>
       </ol>
     </nav>
+  </div>
+</div>
+
+{{-- Filter Bulan-Tahun --}}
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-body py-2">
+    <form action="{{ route('claim-records.dpjp') }}" method="GET" class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-0">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <span class="small fw-semibold text-muted text-nowrap"><i data-feather="calendar" class="text-primary me-1" style="width:16px;height:16px;"></i>Filter Bulan Pulang:</span>
+        <select name="month" class="form-select form-select-sm" style="width: 200px; font-size: 0.8rem;">
+          <option value="">-- Semua Bulan --</option>
+          @foreach($availableMonths as $mKey)
+            @php
+              try {
+                $carbon = \Carbon\Carbon::createFromFormat('Y-m', $mKey);
+                $label = $carbon->translatedFormat('F Y');
+              } catch (\Exception $e) {
+                $label = $mKey;
+              }
+            @endphp
+            <option value="{{ $mKey }}" {{ $selectedMonth == $mKey ? 'selected' : '' }}>{{ $label }}</option>
+          @endforeach
+        </select>
+        <button type="submit" class="btn btn-primary btn-sm py-1 px-3">Filter</button>
+        @if($selectedMonth)
+          <a href="{{ route('claim-records.dpjp') }}" class="btn btn-outline-secondary btn-sm py-1 px-3">Reset</a>
+        @endif
+        <a href="{{ route('claim-records.dpjp.export', ['month' => $selectedMonth]) }}" class="btn btn-success btn-sm py-1 px-3 text-white ms-1">
+          <i data-feather="download" style="width:14px;height:14px;" class="me-1"></i>Ekspor Excel
+        </a>
+      </div>
+      @if($selectedMonth)
+        <div class="small text-muted">
+          Menampilkan data bulan: <b>
+            @php
+              try {
+                $carbon = \Carbon\Carbon::createFromFormat('Y-m', $selectedMonth);
+                echo $carbon->translatedFormat('F Y');
+              } catch (\Exception $e) {
+                echo $selectedMonth;
+              }
+            @endphp
+          </b>
+        </div>
+      @endif
+    </form>
   </div>
 </div>
 
@@ -105,7 +155,8 @@
 {{-- Tabel Data Laporan --}}
 <div class="card shadow-sm border-0">
   <div class="card-body">
-    <h6 class="card-title mb-4">Statistik Kinerja Dokter per Bulan</h6>
+    <h6 class="card-title mb-1">Statistik Kinerja Dokter per Bulan</h6>
+    <p class="text-muted small mb-3"><i data-feather="info" class="text-info me-1" style="width:14px;height:14px;"></i> <b>Tip:</b> Klik header kolom (seperti <b>Jumlah Pasien</b>, <b>Total Tarif</b>, atau <b>Selisih</b>) untuk mengurutkan data dari yang <b>terbesar ke terendah</b> (atau sebaliknya).</p>
 
     <div class="table-responsive">
       <table id="dpjpTable" class="table table-striped table-hover table-sm mb-0">
@@ -133,10 +184,10 @@
             <tr>
               <td><span class="badge bg-light text-dark font-weight-bold">{{ $monthName }}</span></td>
               <td><b>{{ $row->dpjp ?: 'Tanpa Nama Dokter' }}</b></td>
-              <td class="text-center font-weight-bold">{{ $row->patient_count }}</td>
-              <td class="text-end">Rp {{ number_format($row->total_total_tarif, 0, ',', '.') }}</td>
-              <td class="text-end">Rp {{ number_format($row->total_tarif_rs, 0, ',', '.') }}</td>
-              <td class="text-end fw-semibold {{ $row->total_selisih >= 0 ? 'text-success' : 'text-danger' }}">
+              <td class="text-center font-weight-bold" data-order="{{ $row->patient_count }}">{{ $row->patient_count }}</td>
+              <td class="text-end" data-order="{{ $row->total_total_tarif }}">Rp {{ number_format($row->total_total_tarif, 0, ',', '.') }}</td>
+              <td class="text-end" data-order="{{ $row->total_tarif_rs }}">Rp {{ number_format($row->total_tarif_rs, 0, ',', '.') }}</td>
+              <td class="text-end fw-semibold {{ $row->total_selisih >= 0 ? 'text-success' : 'text-danger' }}" data-order="{{ $row->total_selisih }}">
                 Rp {{ number_format($row->total_selisih, 0, ',', '.') }}
               </td>
             </tr>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>Login - Claim RSUI</title>
+    <title>Login - Sihitung RSUI</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -111,7 +111,7 @@
                             <div class="auth-form-wrapper p-4 p-md-5">
                                 <a href="#" class="noble-logo d-flex align-items-center text-decoration-none">
                                     <img src="{{ asset('images/logorsui.png') }}" alt="logo" style="width: 48px; height: auto;" class="me-3">
-                                    <span>Claim RSUI</span>
+                                    <span>Sihitung<span>RSUI</span></span>
                                 </a>
                                 <h5 class="text-muted fw-normal mb-4">Selamat Datang! Masuk ke akun Anda.</h5>
                                 

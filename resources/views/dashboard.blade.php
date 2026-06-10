@@ -106,6 +106,34 @@
   </div>
 </div>
 
+{{-- Filter Tanggal --}}
+<div class="card shadow-sm mb-4 fade-in-up" style="animation-delay: 25ms;">
+  <div class="card-body py-2">
+    <form action="{{ route('dashboard') }}" method="GET" class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-0">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <span class="small fw-semibold text-muted text-nowrap"><i data-feather="calendar" class="text-primary me-1" style="width:16px;height:16px;"></i>Filter Tanggal Pulang:</span>
+        <div class="d-flex align-items-center gap-1">
+          <input type="date" name="start_date" class="form-control form-control-sm" value="{{ $startDate }}" style="width: 145px; font-size: 0.8rem;">
+          <span class="small text-muted">s/d</span>
+          <input type="date" name="end_date" class="form-control form-control-sm" value="{{ $endDate }}" style="width: 145px; font-size: 0.8rem;">
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm py-1 px-3">Filter</button>
+        @if($startDate || $endDate)
+          <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary btn-sm py-1 px-3">Reset</a>
+        @endif
+        <a href="{{ route('dashboard.export', ['start_date' => $startDate, 'end_date' => $endDate]) }}" class="btn btn-success btn-sm py-1 px-3 text-white ms-1">
+          <i data-feather="download" style="width:14px;height:14px;" class="me-1"></i>Ekspor Data Diagram (Excel)
+        </a>
+      </div>
+      @if($startDate || $endDate)
+        <div class="small text-muted">
+          Menampilkan data dari: <b>{{ $startDate ? \Carbon\Carbon::parse($startDate)->format('d/m/Y') : 'Awal' }}</b> s/d <b>{{ $endDate ? \Carbon\Carbon::parse($endDate)->format('d/m/Y') : 'Akhir' }}</b>
+        </div>
+      @endif
+    </form>
+  </div>
+</div>
+
 {{-- ===== ROW 1: STAT CARDS ===== --}}
 <div class="row g-3 mb-4">
   {{-- Total Pasien --}}

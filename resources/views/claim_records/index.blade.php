@@ -51,14 +51,37 @@
     <div class="card shadow-sm">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-center flex-wrap mb-3 gap-2">
-          <h6 class="card-title mb-0">Total: {{ number_format($totalRecords) }} Klaim Terdaftar</h6>
+          <div>
+            <h6 class="card-title mb-0">
+              Total: {{ number_format($totalFiltered) }} Klaim Terdaftar
+              @if($search || $severity)
+                <small class="text-muted">(Terfilter dari {{ number_format($totalRecords) }})</small>
+              @endif
+            </h6>
+          </div>
           
-          <form action="{{ route('claim-records.index') }}" method="GET" class="d-flex gap-2">
-            <input type="text" name="search" class="form-control form-control-sm" placeholder="Cari Pasien / No RM / Dokter..." value="{{ $search }}" style="width: 200px;">
-            <button type="submit" class="btn btn-outline-primary btn-sm">Cari</button>
-            @if($search)
-              <a href="{{ route('claim-records.index') }}" class="btn btn-outline-secondary btn-sm">Reset</a>
+          <form action="{{ route('claim-records.index') }}" method="GET" class="d-flex align-items-center gap-2 flex-wrap mb-0">
+            <!-- Severity Filter -->
+            <select name="severity" class="form-select form-select-sm" style="width: 140px; font-size: 0.8rem;">
+              <option value="">Semua Severity</option>
+              <option value="I" {{ $severity === 'I' ? 'selected' : '' }}>Severity I (Ringan)</option>
+              <option value="II" {{ $severity === 'II' ? 'selected' : '' }}>Severity II (Sedang)</option>
+              <option value="III" {{ $severity === 'III' ? 'selected' : '' }}>Severity III (Berat)</option>
+            </select>
+
+            <!-- Search input -->
+            <input type="text" name="search" class="form-control form-control-sm" placeholder="Cari Pasien / No RM / Dokter..." value="{{ $search }}" style="width: 210px; font-size: 0.8rem;">
+            
+            <button type="submit" class="btn btn-primary btn-sm py-1 px-3">Filter</button>
+            
+            @if($search || $severity)
+              <a href="{{ route('claim-records.index') }}" class="btn btn-outline-secondary btn-sm py-1 px-2">Reset</a>
             @endif
+
+            <!-- Export button -->
+            <a href="{{ route('claim-records.export', ['search' => $search, 'severity' => $severity]) }}" class="btn btn-outline-success btn-sm py-1 px-3">
+              <i data-feather="download" style="width:13px;height:13px;" class="me-1"></i>Ekspor Excel
+            </a>
           </form>
         </div>
 
@@ -115,7 +138,7 @@
         </div>
 
         <div class="mt-3 d-flex justify-content-end">
-          {{ $records->appends(['search' => $search])->links('pagination::bootstrap-5') }}
+          {{ $records->appends(['search' => $search, 'severity' => $severity])->links('pagination::bootstrap-5') }}
         </div>
       </div>
     </div>

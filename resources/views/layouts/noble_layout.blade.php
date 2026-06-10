@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <title>@yield('title') - Claim RSUI</title>
+  <title>@yield('title') - Sihitung RSUI</title>
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -753,7 +753,7 @@
       <div class="sidebar-header">
         <a href="{{ route('dashboard') }}" class="logo">
           <img src="{{ asset('images/logorsui.png') }}" alt="logo" style="width: 32px; height: auto;" class="me-2">
-          <span class="logo-text">Silacak<span>RSUI</span></span>
+          <span class="logo-text">Sihitung<span>RSUI</span></span>
         </a>
         <div class="sidebar-toggler not-active d-md-none ms-auto">
           <span></span>
