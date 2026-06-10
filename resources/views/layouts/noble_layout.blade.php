@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <title>@yield('title') - Silacak RSUI</title>
+  <title>@yield('title') - Claim RSUI</title>
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -773,28 +773,18 @@
 
           <li class="nav-category">Aplikasi</li>
           <li class="nav-item">
-            <a href="{{ route('medical-records.index') }}"
-              class="nav-link {{ request()->routeIs('medical-records.*') ? 'active' : '' }}">
+            <a href="{{ route('claim-records.index') }}"
+              class="nav-link {{ request()->routeIs('claim-records.index') ? 'active' : '' }}">
               <i class="link-icon" data-feather="file-text"></i>
-              <span class="link-title">Rekam Medis</span>
+              <span class="link-title">Data Klaim</span>
             </a>
           </li>
 
-          @if(auth()->check() && in_array(auth()->user()->role, ['administrator', 'editor']))
-            <li class="nav-item">
-              <a href="{{ route('master-data.index') }}"
-                class="nav-link {{ request()->routeIs('master-data.*') ? 'active' : '' }}">
-                <i class="link-icon" data-feather="database"></i>
-                <span class="link-title">Management Data</span>
-              </a>
-            </li>
-          @endif
-
           <li class="nav-item">
-            <a href="{{ route('patient-geography.index') }}"
-              class="nav-link {{ request()->routeIs('patient-geography.*') ? 'active' : '' }}">
-              <i class="link-icon" data-feather="map"></i>
-              <span class="link-title">Geografi Pasien</span>
+            <a href="{{ route('claim-records.dpjp') }}"
+              class="nav-link {{ request()->routeIs('claim-records.dpjp') ? 'active' : '' }}">
+              <i class="link-icon" data-feather="activity"></i>
+              <span class="link-title">Laporan DPJP</span>
             </a>
           </li>
 

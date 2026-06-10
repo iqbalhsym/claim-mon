@@ -32,11 +32,9 @@
   .stat-icon-success { background: rgba(5,163,74,0.12);   color: #05a34a; }
   .stat-icon-warning { background: rgba(251,188,6,0.12);  color: #fbbc06; }
   .stat-icon-danger  { background: rgba(255,51,102,0.12); color: #ff3366; }
-  .stat-icon-info    { background: rgba(102,209,209,0.12);color: #66d1d1; }
-  .stat-icon-purple  { background: rgba(139,92,246,0.12); color: #8b5cf6; }
 
   .stat-number {
-    font-size: 2rem;
+    font-size: 1.6rem;
     font-weight: 800;
     line-height: 1.1;
     font-family: var(--heading-font);
@@ -49,62 +47,19 @@
     text-transform: uppercase;
     letter-spacing: 0.4px;
   }
-  .stat-sub {
-    font-size: 0.8rem;
-    margin-top: 2px;
-  }
 
-  /* Progress ring */
-  .ring-wrap {
-    position: relative;
-    width: 80px;
-    height: 80px;
-    flex-shrink: 0;
-  }
-  .ring-wrap svg { transform: rotate(-90deg); }
-  .ring-wrap .ring-text {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1rem;
-    font-weight: 800;
+  /* Section title */
+  .section-title {
+    font-size: 0.95rem;
+    font-weight: 700;
     color: var(--dark-color);
-  }
-
-  /* Mini progress bar */
-  .mini-progress {
-    height: 6px;
-    border-radius: 3px;
-    background: var(--border-color);
-    overflow: hidden;
-    margin-top: 6px;
-  }
-  .mini-progress-bar {
-    height: 100%;
-    border-radius: 3px;
-    transition: width 1s ease;
-  }
-
-  /* Guarantor badge list */
-  .guarantor-item {
+    margin-bottom: 1rem;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--border-color);
+    gap: 8px;
   }
-  .guarantor-item:last-child { border-bottom: none; }
-  .guarantor-bar {
-    height: 4px;
-    border-radius: 2px;
-    background: var(--primary-color);
-    margin-top: 4px;
-    transition: width 1s ease;
-  }
+  .section-title svg { width: 16px; height: 16px; color: var(--primary-color); }
 
-  /* Recent table */
   .recent-table th {
     font-size: 0.7rem;
     text-transform: uppercase;
@@ -124,29 +79,8 @@
   }
   .recent-table tr:last-child td { border-bottom: none; }
 
-  /* Month comparison */
-  .month-badge {
-    font-size: 0.75rem;
-    padding: 3px 8px;
-    border-radius: 20px;
-    font-weight: 600;
-  }
-
-  /* Section title */
-  .section-title {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: var(--dark-color);
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .section-title svg { width: 16px; height: 16px; color: var(--primary-color); }
-
   /* Dark mode adjustments */
   [data-theme="dark"] .stat-number { color: var(--text-color); }
-  [data-theme="dark"] .ring-wrap .ring-text { color: var(--text-color); }
   [data-theme="dark"] .section-title { color: var(--text-color); }
 </style>
 @endsection
@@ -156,302 +90,209 @@
 {{-- Header --}}
 <div class="d-flex justify-content-between align-items-center flex-wrap mb-4 fade-in-up">
   <div>
-    <h4 class="mb-1 page-title">Dashboard</h4>
+    <h4 class="mb-1 page-title">Dashboard Analitis</h4>
     <p class="text-muted mb-0">
-      Monitoring Kelengkapan Rekam Medis &mdash;
+      Monitoring Data Klaim &amp; Severity &mdash;
       <span class="fw-semibold">{{ \Carbon\Carbon::now()->translatedFormat('l, d F Y') }}</span>
     </p>
   </div>
   <div class="d-flex gap-2 flex-wrap">
-    <a href="{{ route('medical-records.index') }}" class="btn btn-outline-primary btn-sm">
-      <i data-feather="list" style="width:14px;height:14px;" class="me-1"></i> Lihat Semua RM
+    <a href="{{ route('claim-records.index') }}" class="btn btn-primary btn-sm">
+      <i data-feather="file-text" style="width:14px;height:14px;" class="me-1"></i> Lihat Data Klaim
     </a>
-    <a href="{{ route('medical-records.create') }}" class="btn btn-primary btn-sm">
-      <i data-feather="plus" style="width:14px;height:14px;" class="me-1"></i> Catatan Baru
+    <a href="{{ route('claim-records.dpjp') }}" class="btn btn-outline-primary btn-sm">
+      <i data-feather="activity" style="width:14px;height:14px;" class="me-1"></i> Laporan DPJP
     </a>
   </div>
 </div>
 
 {{-- ===== ROW 1: STAT CARDS ===== --}}
 <div class="row g-3 mb-4">
-
-  {{-- Total RM --}}
+  {{-- Total Pasien --}}
   <div class="col-6 col-md-3 fade-in-up" style="animation-delay:50ms">
     <div class="card stat-card h-100">
       <div class="card-body">
         <div class="d-flex align-items-start justify-content-between mb-3">
           <div class="stat-icon stat-icon-primary">
-            <i data-feather="file-text"></i>
+            <i data-feather="users"></i>
           </div>
-          @php $trendClass = $bulanIni >= $bulanLalu ? 'text-success' : 'text-danger'; @endphp
-          <span class="badge {{ $bulanIni >= $bulanLalu ? 'bg-success' : 'bg-danger' }} bg-opacity-10 {{ $trendClass }} month-badge">
-            {{ $bulanIni >= $bulanLalu ? '↑' : '↓' }} Bulan ini
-          </span>
         </div>
         <div class="stat-number">{{ number_format($totalRecord) }}</div>
-        <div class="stat-label mt-1">Total Rekam Medis</div>
-        <div class="stat-sub text-muted">{{ $bulanIni }} masuk bulan ini</div>
+        <div class="stat-label mt-1">Total Pasien</div>
       </div>
     </div>
   </div>
 
-  {{-- Lengkap --}}
+  {{-- Total Tarif --}}
   <div class="col-6 col-md-3 fade-in-up" style="animation-delay:100ms">
     <div class="card stat-card h-100">
       <div class="card-body">
         <div class="d-flex align-items-start justify-content-between mb-3">
           <div class="stat-icon stat-icon-success">
-            <i data-feather="check-circle"></i>
+            <i data-feather="trending-up"></i>
           </div>
-          <span class="badge bg-success bg-opacity-10 text-success month-badge">{{ $persenLengkap }}%</span>
         </div>
-        <div class="stat-number">{{ number_format($lengkap) }}</div>
-        <div class="stat-label mt-1">Berkas Lengkap</div>
-        <div class="mini-progress">
-          <div class="mini-progress-bar bg-success" style="width: {{ $persenLengkap }}%"></div>
-        </div>
+        <div class="stat-number" style="font-size: 1.3rem;">Rp {{ number_format($totalTotalTarif, 0, ',', '.') }}</div>
+        <div class="stat-label mt-1">Total Tarif</div>
       </div>
     </div>
   </div>
 
-  {{-- Tidak Lengkap --}}
+  {{-- Total Tarif RS --}}
   <div class="col-6 col-md-3 fade-in-up" style="animation-delay:150ms">
     <div class="card stat-card h-100">
       <div class="card-body">
         <div class="d-flex align-items-start justify-content-between mb-3">
           <div class="stat-icon stat-icon-warning">
-            <i data-feather="alert-triangle"></i>
+            <i data-feather="home"></i>
           </div>
-          @php $persenTidak = $totalRecord > 0 ? round(($tidakLengkap/$totalRecord)*100) : 0; @endphp
-          <span class="badge bg-warning bg-opacity-10 text-warning month-badge">{{ $persenTidak }}%</span>
         </div>
-        <div class="stat-number">{{ number_format($tidakLengkap) }}</div>
-        <div class="stat-label mt-1">Tidak Lengkap</div>
-        <div class="mini-progress">
-          <div class="mini-progress-bar bg-warning" style="width: {{ $persenTidak }}%"></div>
-        </div>
+        <div class="stat-number" style="font-size: 1.3rem;">Rp {{ number_format($totalTarifRs, 0, ',', '.') }}</div>
+        <div class="stat-label mt-1">Total Tarif RS</div>
       </div>
     </div>
   </div>
 
-  {{-- Sudah Kembali --}}
+  {{-- Selisih --}}
   <div class="col-6 col-md-3 fade-in-up" style="animation-delay:200ms">
     <div class="card stat-card h-100">
       <div class="card-body">
         <div class="d-flex align-items-start justify-content-between mb-3">
-          <div class="stat-icon stat-icon-info">
-            <i data-feather="corner-down-left"></i>
-          </div>
-          @php $persenKembali = $totalRecord > 0 ? round(($sudahKembali/$totalRecord)*100) : 0; @endphp
-          <span class="badge bg-info bg-opacity-10 text-info month-badge">{{ $persenKembali }}%</span>
-        </div>
-        <div class="stat-number">{{ number_format($sudahKembali) }}</div>
-        <div class="stat-label mt-1">RM Sudah Kembali</div>
-        <div class="mini-progress">
-          <div class="mini-progress-bar bg-info" style="width: {{ $persenKembali }}%"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-</div>
-
-{{-- ===== ROW 2: CHART + MONITORING ===== --}}
-<div class="row g-3 mb-4">
-
-  {{-- Donut Chart Kelengkapan --}}
-  <div class="col-md-4 fade-in-up" style="animation-delay:250ms">
-    <div class="card h-100">
-      <div class="card-body">
-        <div class="section-title">
-          <i data-feather="pie-chart"></i> Kelengkapan Berkas
-        </div>
-        <div class="d-flex align-items-center justify-content-center py-2">
-          <canvas id="donutChart" width="200" height="200"></canvas>
-        </div>
-        <div class="d-flex justify-content-center gap-4 mt-3">
-          <div class="text-center">
-            <div class="fw-bold" style="color:#05a34a">{{ $lengkap }}</div>
-            <div class="stat-label">Lengkap</div>
-          </div>
-          <div class="text-center">
-            <div class="fw-bold" style="color:#fbbc06">{{ $tidakLengkap }}</div>
-            <div class="stat-label">Tidak Lengkap</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  {{-- Status Monitoring --}}
-  <div class="col-md-4 fade-in-up" style="animation-delay:300ms">
-    <div class="card h-100">
-      <div class="card-body">
-        <div class="section-title">
-          <i data-feather="activity"></i> Status Monitoring
-        </div>
-
-        {{-- Kembali ke RM --}}
-        <div class="mb-4">
-          <div class="d-flex justify-content-between align-items-center mb-1">
-            <span class="small fw-semibold">Kembali ke RM</span>
-            <span class="small text-muted">{{ $sudahKembali }} / {{ $totalRecord }}</span>
-          </div>
-          @php $pKembali = $totalRecord > 0 ? round(($sudahKembali/$totalRecord)*100) : 0; @endphp
-          <div class="mini-progress">
-            <div class="mini-progress-bar bg-primary" style="width:{{ $pKembali }}%"></div>
-          </div>
-          <div class="d-flex justify-content-between mt-1">
-            <span class="small text-success">✓ Sudah: {{ $sudahKembali }}</span>
-            <span class="small text-danger">✗ Belum: {{ $belumKembali }}</span>
-          </div>
-        </div>
-
-        {{-- Analisa --}}
-        <div class="mb-4">
-          <div class="d-flex justify-content-between align-items-center mb-1">
-            <span class="small fw-semibold">Analisa</span>
-            <span class="small text-muted">{{ $sudahAnalisa }} / {{ $totalRecord }}</span>
-          </div>
-          @php $pAnalisa = $totalRecord > 0 ? round(($sudahAnalisa/$totalRecord)*100) : 0; @endphp
-          <div class="mini-progress">
-            <div class="mini-progress-bar bg-purple" style="width:{{ $pAnalisa }}%; background:#8b5cf6;"></div>
-          </div>
-          <div class="d-flex justify-content-between mt-1">
-            <span class="small text-success">✓ Sudah: {{ $sudahAnalisa }}</span>
-            <span class="small text-danger">✗ Belum: {{ $belumAnalisa }}</span>
-          </div>
-        </div>
-
-        {{-- Laporan Pembedahan --}}
-        <div>
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <span class="small fw-semibold">Laporan Pembedahan</span>
-          </div>
-          <div class="d-flex gap-2 flex-wrap">
-            <span class="badge bg-success bg-opacity-10 text-success">
-              ✓ Lengkap: {{ $pembedahanLengkap }}
-            </span>
-            <span class="badge bg-warning bg-opacity-10 text-warning">
-              ⚠ Tdk Lengkap: {{ $pembedahanTidakLengkap }}
-            </span>
-            <span class="badge bg-secondary bg-opacity-10 text-muted">
-              — Kosong: {{ $pembedahanKosong }}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  {{-- Breakdown Guarantor --}}
-  <div class="col-md-4 fade-in-up" style="animation-delay:350ms">
-    <div class="card h-100">
-      <div class="card-body">
-        <div class="section-title">
-          <i data-feather="users"></i> Top Guarantor
-        </div>
-        @forelse($byGuarantor as $item)
-          @php
-            $pct = $totalRecord > 0 ? round(($item->total / $totalRecord) * 100) : 0;
-            $colors = ['#0F5DA6','#05a34a','#fbbc06','#ff3366','#66d1d1'];
-            $color  = $colors[$loop->index % count($colors)];
-          @endphp
-          <div class="guarantor-item">
-            <div class="flex-grow-1 me-3">
-              <div class="d-flex justify-content-between">
-                <span class="small fw-semibold">{{ $item->guarantor ?: 'Tidak Diisi' }}</span>
-                <span class="small text-muted">{{ $item->total }} ({{ $pct }}%)</span>
-              </div>
-              <div class="mini-progress mt-1">
-                <div class="mini-progress-bar" style="width:{{ $pct }}%; background:{{ $color }};"></div>
-              </div>
+          @if($totalSelisih >= 0)
+            <div class="stat-icon stat-icon-success">
+              <i data-feather="plus-circle"></i>
             </div>
-          </div>
-        @empty
-          <p class="text-muted small">Belum ada data.</p>
-        @endforelse
+          @else
+            <div class="stat-icon stat-icon-danger">
+              <i data-feather="minus-circle"></i>
+            </div>
+          @endif
+        </div>
+        <div class="stat-number {{ $totalSelisih >= 0 ? 'text-success' : 'text-danger' }}" style="font-size: 1.3rem;">
+          Rp {{ number_format($totalSelisih, 0, ',', '.') }}
+        </div>
+        <div class="stat-label mt-1">Total Selisih</div>
+      </div>
+    </div>
+  </div>
+</div>
 
-        <div class="mt-3 pt-2 border-top">
-          <div class="d-flex justify-content-between">
-            <span class="small text-muted">Bulan lalu</span>
-            <span class="small fw-bold">{{ $bulanLalu }} RM</span>
-          </div>
-          <div class="d-flex justify-content-between mt-1">
-            <span class="small text-muted">Bulan ini</span>
-            <span class="small fw-bold {{ $bulanIni >= $bulanLalu ? 'text-success' : 'text-danger' }}">
-              {{ $bulanIni }} RM
-              @if($bulanLalu > 0)
-                ({{ $bulanIni >= $bulanLalu ? '+' : '' }}{{ round((($bulanIni - $bulanLalu) / $bulanLalu) * 100) }}%)
-              @endif
-            </span>
-          </div>
+{{-- ===== ROW 2: GRAPHICS (SEVERITY) ===== --}}
+<div class="row g-3 mb-4">
+  {{-- Chart 1: Jumlah Kasus Severity --}}
+  <div class="col-md-6 fade-in-up" style="animation-delay:250ms">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="section-title">
+          <i data-feather="bar-chart-2"></i> Jumlah Kasus Severity per Bulan
+        </div>
+        <div style="position: relative; height: 320px;">
+          <canvas id="severityCountChart"></canvas>
         </div>
       </div>
     </div>
   </div>
 
+  {{-- Chart 2: Persentase Kasus Severity --}}
+  <div class="col-md-6 fade-in-up" style="animation-delay:300ms">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="section-title">
+          <i data-feather="percent"></i> Persentase Kasus Severity per Bulan
+        </div>
+        <div style="position: relative; height: 320px;">
+          <canvas id="severityPercentChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
-{{-- ===== ROW 3: RECENT RECORDS ===== --}}
-<div class="row g-3 fade-in-up" style="animation-delay:400ms">
-  <div class="col-12">
-    <div class="card">
+{{-- ===== ROW 3: TOP DOCTORS & RECENT CLAIMS ===== --}}
+<div class="row g-3 mb-4">
+  {{-- Top Doctors --}}
+  <div class="col-md-5 fade-in-up" style="animation-delay:350ms">
+    <div class="card h-100">
       <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <div class="section-title mb-0">
-            <i data-feather="clock"></i> Rekam Medis Terbaru
-          </div>
-          <a href="{{ route('medical-records.index') }}" class="btn btn-outline-primary btn-sm">
-            Lihat Semua <i data-feather="arrow-right" style="width:13px;height:13px;" class="ms-1"></i>
-          </a>
+        <div class="section-title">
+          <i data-feather="user-check"></i> Top 5 DPJP (Dokter Utama)
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm mb-0">
+            <thead>
+              <tr>
+                <th>Nama Dokter</th>
+                <th class="text-center">Pasien</th>
+                <th class="text-end">Selisih</th>
+              </tr>
+            </thead>
+            <tbody>
+              @forelse($topDoctors as $doc)
+                <tr>
+                  <td class="text-truncate" style="max-width: 180px;" title="{{ $doc->dpjp ?: 'Tanpa Nama' }}">
+                    <b>{{ $doc->dpjp ?: 'Tanpa Nama' }}</b>
+                  </td>
+                  <td class="text-center"><span class="badge bg-primary bg-opacity-10 text-primary">{{ $doc->patient_count }}</span></td>
+                  <td class="text-end fw-semibold {{ $doc->total_selisih >= 0 ? 'text-success' : 'text-danger' }}">
+                    Rp {{ number_format($doc->total_selisih, 0, ',', '.') }}
+                  </td>
+                </tr>
+              @empty
+                <tr>
+                  <td colspan="3" class="text-center text-muted py-3">Tidak ada data dokter.</td>
+                </tr>
+              @endforelse
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {{-- Recent Claims --}}
+  <div class="col-md-7 fade-in-up" style="animation-delay:400ms">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="section-title">
+          <i data-feather="clock"></i> Klaim Pasien Terbaru
         </div>
         <div class="table-responsive">
           <table class="table recent-table mb-0">
             <thead>
               <tr>
-                <th>Billing No</th>
                 <th>Nama Pasien</th>
-                <th>Guarantor</th>
-                <th>Ruangan</th>
-                <th>Tgl Pulang</th>
-                <th>Status Berkas</th>
-                <th>RM / Analisa</th>
-                <th></th>
+                <th>INACBG</th>
+                <th>Severity</th>
+                <th class="text-end">Selisih</th>
               </tr>
             </thead>
             <tbody>
               @forelse($recentRecords as $rec)
-              <tr class="{{ $rec->is_rm_lengkap ? 'table-row-complete' : 'table-row-incomplete' }}">
-                <td class="text-muted text-mono">{{ $rec->billing_no ?: '-' }}</td>
-                <td>
-                  <div class="fw-semibold">{{ $rec->nama_pasien ?: '-' }}</div>
-                  <div class="text-muted" style="font-size:0.75rem">No RM: <span class="text-mono">{{ $rec->no_rm }}</span></div>
-                </td>
-                <td>{{ $rec->guarantor ?: '-' }}</td>
-                <td>{{ $rec->ruangan ?: $rec->ruangan_afya ?: '-' }}</td>
-                <td>{{ $rec->tanggal_pulang ? \Carbon\Carbon::parse($rec->tanggal_pulang)->format('d/m/Y') : '-' }}</td>
-                <td>
-                  @if($rec->is_rm_lengkap)
-                    <span class="badge badge-success">LENGKAP</span>
-                  @else
-                    <span class="badge badge-warning">TDK LENGKAP</span>
-                  @endif
-                </td>
-                <td>
-                  <span class="text-{{ $rec->status_kembali_rm ? 'success' : 'danger' }}" title="Kembali ke RM">●</span>
-                  <span class="text-{{ $rec->status_analisa ? 'success' : 'danger' }}" title="Analisa">●</span>
-                </td>
-                <td>
-                  <a href="{{ route('medical-records.show', $rec->id) }}" class="btn btn-outline-info btn-sm py-0 px-2">
-                    <i data-feather="eye" style="width:13px;height:13px;"></i>
-                  </a>
-                </td>
-              </tr>
+                <tr>
+                  <td>
+                    <div class="fw-semibold text-truncate" style="max-width: 160px;">{{ $rec->nama_pasien }}</div>
+                    <small class="text-muted text-mono">RM: {{ $rec->no_rm }}</small>
+                  </td>
+                  <td class="text-mono small">{{ $rec->inacbg }}</td>
+                  <td class="text-center">
+                    @if($rec->severity == 'I')
+                      <span class="badge bg-success bg-opacity-10 text-success">I (Ringan)</span>
+                    @elseif($rec->severity == 'II')
+                      <span class="badge bg-warning bg-opacity-10 text-warning">II (Sedang)</span>
+                    @elseif($rec->severity == 'III')
+                      <span class="badge bg-danger bg-opacity-10 text-danger">III (Berat)</span>
+                    @else
+                      <span class="badge bg-secondary text-muted">{{ $rec->severity }}</span>
+                    @endif
+                  </td>
+                  <td class="text-end fw-semibold {{ $rec->selisih >= 0 ? 'text-success' : 'text-danger' }}">
+                    Rp {{ number_format($rec->selisih, 0, ',', '.') }}
+                  </td>
+                </tr>
               @empty
-              <tr>
-                <td colspan="8" class="text-center text-muted py-4">Belum ada data rekam medis.</td>
-              </tr>
+                <tr>
+                  <td colspan="4" class="text-center text-muted py-3">Tidak ada data klaim.</td>
+                </tr>
               @endforelse
             </tbody>
           </table>
@@ -467,70 +308,121 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-  feather.replace();
-
-  // Donut Chart
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const textColor = isDark ? '#e2e8f0' : '#0b132b';
+  const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)';
+  const labelColor = isDark ? '#8899bb' : '#7987a1';
 
-  const ctx = document.getElementById('donutChart').getContext('2d');
-  const donut = new Chart(ctx, {
-    type: 'doughnut',
+  const months = @json($months);
+  const counts = @json($severityCounts);
+  const percents = @json($severityPercentages);
+
+  // 1. Chart Jumlah Kasus
+  const ctxCount = document.getElementById('severityCountChart').getContext('2d');
+  new Chart(ctxCount, {
+    type: 'bar',
     data: {
-      labels: ['Lengkap', 'Tidak Lengkap'],
-      datasets: [{
-        data: [{{ $lengkap }}, {{ $tidakLengkap }}],
-        backgroundColor: ['#05a34a', '#fbbc06'],
-        borderColor: isDark ? '#15234b' : '#ffffff',
-        borderWidth: 3,
-        hoverOffset: 6,
-      }]
+      labels: months,
+      datasets: [
+        {
+          label: 'Severity I (Ringan)',
+          data: counts['I'],
+          backgroundColor: '#05a34a',
+          borderRadius: 4
+        },
+        {
+          label: 'Severity II (Sedang)',
+          data: counts['II'],
+          backgroundColor: '#fbbc06',
+          borderRadius: 4
+        },
+        {
+          label: 'Severity III (Berat)',
+          data: counts['III'],
+          backgroundColor: '#ff3366',
+          borderRadius: 4
+        }
+      ]
     },
     options: {
-      cutout: '72%',
+      responsive: true,
+      maintainAspectRatio: false,
       plugins: {
         legend: {
-          display: false,
+          position: 'top',
+          labels: { color: labelColor, font: { family: 'Roboto' } }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { color: labelColor }
+        },
+        y: {
+          grid: { color: gridColor },
+          ticks: { color: labelColor }
+        }
+      }
+    }
+  });
+
+  // 2. Chart Persentase Kasus
+  const ctxPercent = document.getElementById('severityPercentChart').getContext('2d');
+  new Chart(ctxPercent, {
+    type: 'bar',
+    data: {
+      labels: months,
+      datasets: [
+        {
+          label: 'Severity I (%)',
+          data: percents['I'],
+          backgroundColor: '#05a34a',
+          borderRadius: 4
+        },
+        {
+          label: 'Severity II (%)',
+          data: percents['II'],
+          backgroundColor: '#fbbc06',
+          borderRadius: 4
+        },
+        {
+          label: 'Severity III (%)',
+          data: percents['III'],
+          backgroundColor: '#ff3366',
+          borderRadius: 4
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: { color: labelColor, font: { family: 'Roboto' } }
         },
         tooltip: {
           callbacks: {
-            label: function(ctx) {
-              const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
-              const pct = total > 0 ? Math.round((ctx.parsed / total) * 100) : 0;
-              return ` ${ctx.label}: ${ctx.parsed} (${pct}%)`;
+            label: function(context) {
+              return ` ${context.dataset.label}: ${context.raw}%`;
             }
           }
         }
       },
-      animation: { animateRotate: true, duration: 1000 }
-    },
-    plugins: [{
-      id: 'centerText',
-      afterDraw(chart) {
-        const { ctx, chartArea: { width, height, left, top } } = chart;
-        ctx.save();
-        const total = chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-        const pct   = total > 0 ? Math.round((chart.data.datasets[0].data[0] / total) * 100) : 0;
-        ctx.font = 'bold 1.4rem Overpass, sans-serif';
-        ctx.fillStyle = isDark ? '#e2e8f0' : '#0b132b';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(pct + '%', left + width / 2, top + height / 2 - 8);
-        ctx.font = '0.7rem Roboto, sans-serif';
-        ctx.fillStyle = '#7987a1';
-        ctx.fillText('Lengkap', left + width / 2, top + height / 2 + 14);
-        ctx.restore();
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { color: labelColor }
+        },
+        y: {
+          grid: { color: gridColor },
+          ticks: {
+            color: labelColor,
+            callback: function(value) { return value + '%'; }
+          },
+          max: 100
+        }
       }
-    }]
-  });
-
-  // Re-render chart on theme toggle
-  document.getElementById('theme-toggler').addEventListener('click', function() {
-    setTimeout(() => {
-      const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-      donut.data.datasets[0].borderColor = dark ? '#15234b' : '#ffffff';
-      donut.update();
-    }, 50);
+    }
   });
 });
 </script>
