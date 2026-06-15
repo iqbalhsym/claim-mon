@@ -34,7 +34,20 @@ class ClaimRecordController extends Controller
         $records = $query->orderBy('discharge_date', 'desc')->paginate(50);
         $totalRecords = ClaimRecord::count();
 
-        return view('claim_records.index', compact('records', 'totalRecords', 'totalFiltered', 'search', 'severity'));
+        $driver = DB::connection()->getDriverName();
+        $monthExpr = $driver === 'pgsql'
+            ? "to_char(discharge_date, 'YYYY-MM')"
+            : "strftime('%Y-%m', discharge_date)";
+
+        $availableMonths = ClaimRecord::selectRaw("$monthExpr as month_key")
+            ->whereNotNull('discharge_date')
+            ->groupBy('month_key')
+            ->orderBy('month_key', 'desc')
+            ->pluck('month_key')
+            ->filter()
+            ->values();
+
+        return view('claim_records.index', compact('records', 'totalRecords', 'totalFiltered', 'search', 'severity', 'availableMonths'));
     }
 
     public function import(Request $request)
@@ -114,10 +127,30 @@ class ClaimRecordController extends Controller
         }
     }
 
-    public function truncate()
+    public function truncate(Request $request)
     {
-        ClaimRecord::truncate();
-        return redirect()->route('claim-records.index')->with('success', 'Semua data klaim berhasil dihapus.');
+        $deleteMonth = $request->input('delete_month', 'all');
+
+        if ($deleteMonth === 'all') {
+            ClaimRecord::truncate();
+            return redirect()->route('claim-records.index')->with('success', 'Semua data klaim berhasil dihapus.');
+        } else {
+            $driver = DB::connection()->getDriverName();
+            $monthExpr = $driver === 'pgsql'
+                ? "to_char(discharge_date, 'YYYY-MM')"
+                : "strftime('%Y-%m', discharge_date)";
+
+            $deletedCount = ClaimRecord::whereRaw("$monthExpr = ?", [$deleteMonth])->delete();
+
+            try {
+                $carbon = Carbon::createFromFormat('Y-m', $deleteMonth);
+                $monthLabel = $carbon->translatedFormat('F Y');
+            } catch (\Exception $e) {
+                $monthLabel = $deleteMonth;
+            }
+
+            return redirect()->route('claim-records.index')->with('success', "Berhasil menghapus {$deletedCount} data klaim untuk bulan {$monthLabel}.");
+        }
     }
 
     public function dpjpReport(Request $request)
@@ -226,9 +259,9 @@ class ClaimRecordController extends Controller
             'B4' => 'Bulan',
             'C4' => 'Nama Dokter (DPJP)',
             'D4' => 'Jumlah Pasien',
-            'E4' => 'Total Tarif (Rp)',
+            'E4' => 'Total Tarif+INACBG',
             'F4' => 'Tarif RS (Rp)',
-            'G4' => 'Selisih (Rp)'
+            'G4' => 'Balance Positif/Negatif'
         ];
 
         foreach ($headers as $cell => $text) {
@@ -258,9 +291,9 @@ class ClaimRecordController extends Controller
             $sheet->setCellValue('B' . $rowIdx, $monthName);
             $sheet->setCellValue('C' . $rowIdx, $row->dpjp ?: 'Tanpa Nama Dokter');
             $sheet->setCellValue('D' . $rowIdx, $row->patient_count);
-            $sheet->setCellValue('E' . $rowIdx, $row->total_total_tarif);
+            $sheet->setCellValue('E' . $rowIdx, $row->total_total_tarif + $row->total_tarif_rs);
             $sheet->setCellValue('F' . $rowIdx, $row->total_tarif_rs);
-            $sheet->setCellValue('G' . $rowIdx, $row->total_selisih);
+            $sheet->setCellValue('G' . $rowIdx, $row->total_total_tarif);
 
             // Alignments & formats
             $sheet->getStyle('A' . $rowIdx)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
@@ -282,9 +315,9 @@ class ClaimRecordController extends Controller
         $sheet->setCellValue('B' . $rowIdx, '');
         $sheet->setCellValue('C' . $rowIdx, 'Grand Total');
         $sheet->setCellValue('D' . $rowIdx, $grandTotalPatients);
-        $sheet->setCellValue('E' . $rowIdx, $grandTotalTarif);
+        $sheet->setCellValue('E' . $rowIdx, $grandTotalTarif + $grandTotalRs);
         $sheet->setCellValue('F' . $rowIdx, $grandTotalRs);
-        $sheet->setCellValue('G' . $rowIdx, $grandTotalSelisih);
+        $sheet->setCellValue('G' . $rowIdx, $grandTotalTarif);
 
         $sheet->getStyle('C' . $rowIdx . ':G' . $rowIdx)->getFont()->setBold(true);
         $sheet->getStyle('D' . $rowIdx)->getNumberFormat()->setFormatCode('#,##0');
@@ -358,8 +391,8 @@ class ClaimRecordController extends Controller
             'E1' => 'Severity',
             'F1' => 'DPJP (Dokter)',
             'G1' => 'Tarif RS',
-            'H1' => 'Total Tarif',
-            'I1' => 'Selisih'
+            'H1' => 'Total Tarif+INACBG',
+            'I1' => 'Balance Positif/Negatif'
         ];
 
         foreach ($headers as $cell => $text) {
@@ -376,8 +409,8 @@ class ClaimRecordController extends Controller
             $sheet->setCellValue('E' . $row, $rec->severity);
             $sheet->setCellValue('F' . $row, $rec->dpjp);
             $sheet->setCellValue('G' . $row, $rec->tarif_rs);
-            $sheet->setCellValue('H' . $row, $rec->total_tarif);
-            $sheet->setCellValue('I' . $row, $rec->selisih);
+            $sheet->setCellValue('H' . $row, $rec->tarif_rs + $rec->total_tarif);
+            $sheet->setCellValue('I' . $row, $rec->total_tarif);
 
             // Format numeric columns
             $sheet->getStyle('G' . $row)->getNumberFormat()->setFormatCode('#,##0');

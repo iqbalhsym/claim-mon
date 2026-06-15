@@ -4,7 +4,6 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Event;
-use JeroenNoten\LaravelAdminLte\Events\BuildingMenu;
 use Illuminate\Pagination\Paginator;
 
 class AppServiceProvider extends ServiceProvider

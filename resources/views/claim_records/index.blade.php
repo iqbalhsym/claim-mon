@@ -32,12 +32,29 @@
         </button>
       </form>
 
-      <!-- Truncate Form -->
-      <form action="{{ route('claim-records.truncate') }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus semua data klaim? Tindakan ini tidak dapat dibatalkan.')" class="mb-0">
+      <!-- Delete Data Form -->
+      <form action="{{ route('claim-records.truncate') }}" method="POST" onsubmit="return confirmDelete()" class="d-flex align-items-center gap-2 flex-wrap mb-0">
         @csrf
         @method('DELETE')
+        <span class="small fw-semibold text-muted text-nowrap">
+          <i data-feather="trash-2" class="text-danger me-1" style="width:16px;height:16px;"></i>Hapus Data:
+        </span>
+        <select id="delete_month" name="delete_month" class="form-select form-select-sm" style="width: 200px; font-size: 0.78rem;">
+          <option value="all">-- Semua Data (Truncate) --</option>
+          @foreach($availableMonths as $mKey)
+            @php
+              try {
+                $carbon = \Carbon\Carbon::createFromFormat('Y-m', $mKey);
+                $label = $carbon->translatedFormat('F Y');
+              } catch (\Exception $e) {
+                $label = $mKey;
+              }
+            @endphp
+            <option value="{{ $mKey }}">{{ $label }}</option>
+          @endforeach
+        </select>
         <button type="submit" class="btn btn-outline-danger btn-sm py-1 px-3">
-          <i data-feather="trash-2" style="width:13px;height:13px;" class="me-1"></i>Kosongkan Database
+          Hapus
         </button>
       </form>
 
@@ -95,8 +112,8 @@
                 <th class="text-center">INACBG</th>
                 <th class="text-center">Severity</th>
                 <th class="text-end">Tarif RS</th>
-                <th class="text-end">Total Tarif</th>
-                <th class="text-end">Selisih</th>
+                <th class="text-end">Total Tarif+INACBG</th>
+                <th class="text-end">Balance Positif/Negatif</th>
               </tr>
             </thead>
             <tbody>
@@ -123,9 +140,9 @@
                     @endif
                   </td>
                   <td class="text-end small">Rp {{ number_format($rec->tarif_rs, 0, ',', '.') }}</td>
-                  <td class="text-end small">Rp {{ number_format($rec->total_tarif, 0, ',', '.') }}</td>
-                  <td class="text-end fw-semibold small {{ $rec->selisih >= 0 ? 'text-success' : 'text-danger' }}">
-                    Rp {{ number_format($rec->selisih, 0, ',', '.') }}
+                  <td class="text-end small">Rp {{ number_format($rec->tarif_rs + $rec->total_tarif, 0, ',', '.') }}</td>
+                  <td class="text-end fw-semibold small {{ $rec->total_tarif >= 0 ? 'text-success' : 'text-danger' }}">
+                    Rp {{ number_format($rec->total_tarif, 0, ',', '.') }}
                   </td>
                 </tr>
               @empty
@@ -144,4 +161,19 @@
     </div>
   </div>
 </div>
+@endsection
+
+@section('js')
+<script>
+function confirmDelete() {
+    const select = document.getElementById('delete_month');
+    const selectedText = select.options[select.selectedIndex].text;
+    const val = select.value;
+    if (val === 'all') {
+        return confirm('Apakah Anda yakin ingin menghapus SEMUA data klaim? Tindakan ini tidak dapat dibatalkan.');
+    } else {
+        return confirm('Apakah Anda yakin ingin menghapus data klaim untuk bulan ' + selectedText + '? Tindakan ini tidak dapat dibatalkan.');
+    }
+}
+</script>
 @endsection

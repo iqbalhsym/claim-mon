@@ -199,7 +199,7 @@
         <div class="stat-number {{ $totalSelisih >= 0 ? 'text-success' : 'text-danger' }}" style="font-size: 1.3rem;">
           Rp {{ number_format($totalSelisih, 0, ',', '.') }}
         </div>
-        <div class="stat-label mt-1">Total Selisih</div>
+        <div class="stat-label mt-1">Total Balance Positif/Negatif</div>
       </div>
     </div>
   </div>
@@ -251,7 +251,7 @@
               <tr>
                 <th>Nama Dokter</th>
                 <th class="text-center">Pasien</th>
-                <th class="text-end">Selisih</th>
+                <th class="text-end">Balance Positif/Negatif</th>
               </tr>
             </thead>
             <tbody>
@@ -261,8 +261,8 @@
                     <b>{{ $doc->dpjp ?: 'Tanpa Nama' }}</b>
                   </td>
                   <td class="text-center"><span class="badge bg-primary bg-opacity-10 text-primary">{{ $doc->patient_count }}</span></td>
-                  <td class="text-end fw-semibold {{ $doc->total_selisih >= 0 ? 'text-success' : 'text-danger' }}">
-                    Rp {{ number_format($doc->total_selisih, 0, ',', '.') }}
+                  <td class="text-end fw-semibold {{ $doc->total_tarif >= 0 ? 'text-success' : 'text-danger' }}">
+                    Rp {{ number_format($doc->total_tarif, 0, ',', '.') }}
                   </td>
                 </tr>
               @empty
@@ -291,7 +291,7 @@
                 <th>Nama Pasien</th>
                 <th>INACBG</th>
                 <th>Severity</th>
-                <th class="text-end">Selisih</th>
+                <th class="text-end">Balance Positif/Negatif</th>
               </tr>
             </thead>
             <tbody>
@@ -313,8 +313,8 @@
                       <span class="badge bg-secondary text-muted">{{ $rec->severity }}</span>
                     @endif
                   </td>
-                  <td class="text-end fw-semibold {{ $rec->selisih >= 0 ? 'text-success' : 'text-danger' }}">
-                    Rp {{ number_format($rec->selisih, 0, ',', '.') }}
+                  <td class="text-end fw-semibold {{ $rec->total_tarif >= 0 ? 'text-success' : 'text-danger' }}">
+                    Rp {{ number_format($rec->total_tarif, 0, ',', '.') }}
                   </td>
                 </tr>
               @empty
@@ -344,10 +344,39 @@ document.addEventListener('DOMContentLoaded', function () {
   const counts = @json($severityCounts);
   const percents = @json($severityPercentages);
 
+  // Custom inline plugin to draw datalabels above bars
+  const chartDatalabelsPlugin = {
+    id: 'chartDatalabels',
+    afterDatasetsDraw(chart) {
+      const { ctx } = chart;
+      ctx.save();
+      chart.data.datasets.forEach((dataset, datasetIndex) => {
+        const meta = chart.getDatasetMeta(datasetIndex);
+        if (meta.hidden) return;
+        
+        meta.data.forEach((bar, index) => {
+          const val = dataset.data[index];
+          if (val === null || val === undefined || val === 0) return;
+          
+          const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+          ctx.fillStyle = isDark ? '#ffffff' : '#2e3a59';
+          ctx.font = 'bold 9px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'bottom';
+          
+          const text = chart.config.options.isPercent ? val + '%' : val;
+          ctx.fillText(text, bar.x, bar.y - 4);
+        });
+      });
+      ctx.restore();
+    }
+  };
+
   // 1. Chart Jumlah Kasus
   const ctxCount = document.getElementById('severityCountChart').getContext('2d');
   new Chart(ctxCount, {
     type: 'bar',
+    plugins: [chartDatalabelsPlugin],
     data: {
       labels: months,
       datasets: [
@@ -383,7 +412,14 @@ document.addEventListener('DOMContentLoaded', function () {
       scales: {
         x: {
           grid: { display: false },
-          ticks: { color: labelColor }
+          ticks: {
+            color: labelColor,
+            callback: function(val, index) {
+              const label = this.getLabelForValue(val);
+              const total = (counts['I'][index] || 0) + (counts['II'][index] || 0) + (counts['III'][index] || 0);
+              return [label, `Total: ${total}`];
+            }
+          }
         },
         y: {
           grid: { color: gridColor },
@@ -397,6 +433,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const ctxPercent = document.getElementById('severityPercentChart').getContext('2d');
   new Chart(ctxPercent, {
     type: 'bar',
+    plugins: [chartDatalabelsPlugin],
     data: {
       labels: months,
       datasets: [
@@ -421,6 +458,7 @@ document.addEventListener('DOMContentLoaded', function () {
       ]
     },
     options: {
+      isPercent: true,
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
