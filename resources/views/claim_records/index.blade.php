@@ -21,7 +21,7 @@
     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
       
       <!-- Import Form -->
-      <form action="{{ route('claim-records.import') }}" method="POST" enctype="multipart/form-data" class="d-flex align-items-center gap-2 flex-wrap mb-0">
+      <form id="import-form" action="{{ route('claim-records.import') }}" method="POST" enctype="multipart/form-data" class="d-flex align-items-center gap-2 flex-wrap mb-0">
         @csrf
         <span class="small fw-semibold text-muted text-nowrap">
           <i data-feather="upload-cloud" class="text-primary me-1" style="width:16px;height:16px;"></i>Impor Excel:
@@ -161,6 +161,15 @@
     </div>
   </div>
 </div>
+
+<!-- Fullscreen Loading Overlay -->
+<div id="import-loading-overlay" class="position-fixed top-0 start-0 w-100 h-100 d-none" style="background: rgba(11, 19, 43, 0.82); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center; flex-direction: column;">
+  <div class="spinner-border text-primary mb-3" role="status" style="width: 3.5rem; height: 3.5rem; border-width: 0.3em;">
+    <span class="visually-hidden">Loading...</span>
+  </div>
+  <h5 class="text-white fw-bold mb-1" style="letter-spacing: 0.5px;">Membaca &amp; Mengimpor Data Klaim</h5>
+  <p class="text-white text-opacity-75 small mb-0">Sedang memproses file Excel, mohon jangan menutup halaman ini...</p>
+</div>
 @endsection
 
 @section('js')
@@ -175,5 +184,16 @@ function confirmDelete() {
         return confirm('Apakah Anda yakin ingin menghapus data klaim untuk bulan ' + selectedText + '? Tindakan ini tidak dapat dibatalkan.');
     }
 }
+
+document.getElementById('import-form').addEventListener('submit', function(e) {
+    const overlay = document.getElementById('import-loading-overlay');
+    overlay.classList.remove('d-none');
+    overlay.style.display = 'flex';
+    
+    // Disable submit button and show loading text
+    const btn = this.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Memproses...';
+});
 </script>
 @endsection
