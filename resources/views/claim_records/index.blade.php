@@ -140,9 +140,9 @@
                     @endif
                   </td>
                   <td class="text-end small">Rp {{ number_format($rec->tarif_rs, 0, ',', '.') }}</td>
-                  <td class="text-end small">Rp {{ number_format($rec->tarif_rs + $rec->total_tarif, 0, ',', '.') }}</td>
-                  <td class="text-end fw-semibold small {{ $rec->total_tarif >= 0 ? 'text-success' : 'text-danger' }}">
-                    Rp {{ number_format($rec->total_tarif, 0, ',', '.') }}
+                  <td class="text-end small">Rp {{ number_format($rec->total_tarif, 0, ',', '.') }}</td>
+                  <td class="text-end fw-semibold small {{ $rec->selisih >= 0 ? 'text-success' : 'text-danger' }}">
+                    Rp {{ number_format($rec->selisih, 0, ',', '.') }}
                   </td>
                 </tr>
               @empty

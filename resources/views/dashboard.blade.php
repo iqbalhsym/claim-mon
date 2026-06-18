@@ -161,7 +161,7 @@
           </div>
         </div>
         <div class="stat-number" style="font-size: 1.3rem;">Rp {{ number_format($totalTotalTarif, 0, ',', '.') }}</div>
-        <div class="stat-label mt-1">Total Tarif</div>
+        <div class="stat-label mt-1">Total Tarif + INACBG</div>
       </div>
     </div>
   </div>
@@ -176,7 +176,7 @@
           </div>
         </div>
         <div class="stat-number" style="font-size: 1.3rem;">Rp {{ number_format($totalTarifRs, 0, ',', '.') }}</div>
-        <div class="stat-label mt-1">Total Tarif RS + INACBG</div>
+        <div class="stat-label mt-1">Total Tarif RS</div>
       </div>
     </div>
   </div>

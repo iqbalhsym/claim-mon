@@ -313,9 +313,9 @@ class ClaimRecordController extends Controller
             $sheet->setCellValue('B' . $rowIdx, $monthName);
             $sheet->setCellValue('C' . $rowIdx, $row->dpjp ?: 'Tanpa Nama Dokter');
             $sheet->setCellValue('D' . $rowIdx, $row->patient_count);
-            $sheet->setCellValue('E' . $rowIdx, $row->total_total_tarif + $row->total_tarif_rs);
+            $sheet->setCellValue('E' . $rowIdx, $row->total_total_tarif);
             $sheet->setCellValue('F' . $rowIdx, $row->total_tarif_rs);
-            $sheet->setCellValue('G' . $rowIdx, $row->total_total_tarif);
+            $sheet->setCellValue('G' . $rowIdx, $row->total_selisih);
 
             // Alignments & formats
             $sheet->getStyle('A' . $rowIdx)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
@@ -337,9 +337,9 @@ class ClaimRecordController extends Controller
         $sheet->setCellValue('B' . $rowIdx, '');
         $sheet->setCellValue('C' . $rowIdx, 'Grand Total');
         $sheet->setCellValue('D' . $rowIdx, $grandTotalPatients);
-        $sheet->setCellValue('E' . $rowIdx, $grandTotalTarif + $grandTotalRs);
+        $sheet->setCellValue('E' . $rowIdx, $grandTotalTarif);
         $sheet->setCellValue('F' . $rowIdx, $grandTotalRs);
-        $sheet->setCellValue('G' . $rowIdx, $grandTotalTarif);
+        $sheet->setCellValue('G' . $rowIdx, $grandTotalSelisih);
 
         $sheet->getStyle('C' . $rowIdx . ':G' . $rowIdx)->getFont()->setBold(true);
         $sheet->getStyle('D' . $rowIdx)->getNumberFormat()->setFormatCode('#,##0');
@@ -419,9 +419,9 @@ class ClaimRecordController extends Controller
             $sheetKsm->setCellValue('B' . $rowIdxKsm, $monthName);
             $sheetKsm->setCellValue('C' . $rowIdxKsm, $row->ksm ?: 'Tidak Terdaftar/Lain-lain');
             $sheetKsm->setCellValue('D' . $rowIdxKsm, $row->patient_count);
-            $sheetKsm->setCellValue('E' . $rowIdxKsm, $row->total_total_tarif + $row->total_tarif_rs);
+            $sheetKsm->setCellValue('E' . $rowIdxKsm, $row->total_total_tarif);
             $sheetKsm->setCellValue('F' . $rowIdxKsm, $row->total_tarif_rs);
-            $sheetKsm->setCellValue('G' . $rowIdxKsm, $row->total_total_tarif);
+            $sheetKsm->setCellValue('G' . $rowIdxKsm, $row->total_selisih);
 
             // Alignments & formats
             $sheetKsm->getStyle('A' . $rowIdxKsm)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
@@ -443,9 +443,9 @@ class ClaimRecordController extends Controller
         $sheetKsm->setCellValue('B' . $rowIdxKsm, '');
         $sheetKsm->setCellValue('C' . $rowIdxKsm, 'Grand Total');
         $sheetKsm->setCellValue('D' . $rowIdxKsm, $grandTotalPatientsKsm);
-        $sheetKsm->setCellValue('E' . $rowIdxKsm, $grandTotalTarifKsm + $grandTotalRsKsm);
+        $sheetKsm->setCellValue('E' . $rowIdxKsm, $grandTotalTarifKsm);
         $sheetKsm->setCellValue('F' . $rowIdxKsm, $grandTotalRsKsm);
-        $sheetKsm->setCellValue('G' . $rowIdxKsm, $grandTotalTarifKsm);
+        $sheetKsm->setCellValue('G' . $rowIdxKsm, $grandTotalSelisihKsm);
 
         $sheetKsm->getStyle('C' . $rowIdxKsm . ':G' . $rowIdxKsm)->getFont()->setBold(true);
         $sheetKsm->getStyle('D' . $rowIdxKsm)->getNumberFormat()->setFormatCode('#,##0');
@@ -537,8 +537,8 @@ class ClaimRecordController extends Controller
             $sheet->setCellValue('E' . $row, $rec->severity);
             $sheet->setCellValue('F' . $row, $rec->dpjp);
             $sheet->setCellValue('G' . $row, $rec->tarif_rs);
-            $sheet->setCellValue('H' . $row, $rec->tarif_rs + $rec->total_tarif);
-            $sheet->setCellValue('I' . $row, $rec->total_tarif);
+            $sheet->setCellValue('H' . $row, $rec->total_tarif);
+            $sheet->setCellValue('I' . $row, $rec->selisih);
 
             // Format numeric columns
             $sheet->getStyle('G' . $row)->getNumberFormat()->setFormatCode('#,##0');

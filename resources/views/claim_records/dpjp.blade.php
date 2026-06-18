@@ -201,8 +201,8 @@
           }
           $dpjpPivot[$docName][$mKey] = [
               'patients' => $row->patient_count,
-              'total_tarif' => $row->total_total_tarif + $row->total_tarif_rs,
-              'balance' => $row->total_total_tarif
+              'total_tarif' => $row->total_total_tarif,
+              'balance' => $row->total_selisih
           ];
       }
       sort($uniqueMonths);
@@ -262,10 +262,10 @@
                   <td><span class="badge bg-light text-dark font-weight-bold">{{ $monthName }}</span></td>
                   <td><b>{{ $row->dpjp ?: 'Tanpa Nama Dokter' }}</b></td>
                   <td class="text-center font-weight-bold" data-order="{{ $row->patient_count }}">{{ $row->patient_count }}</td>
-                  <td class="text-end" data-order="{{ $row->total_total_tarif + $row->total_tarif_rs }}">Rp {{ number_format($row->total_total_tarif + $row->total_tarif_rs, 0, ',', '.') }}</td>
+                  <td class="text-end" data-order="{{ $row->total_total_tarif }}">Rp {{ number_format($row->total_total_tarif, 0, ',', '.') }}</td>
                   <td class="text-end" data-order="{{ $row->total_tarif_rs }}">Rp {{ number_format($row->total_tarif_rs, 0, ',', '.') }}</td>
-                  <td class="text-end fw-semibold {{ $row->total_total_tarif >= 0 ? 'text-success' : 'text-danger' }}" data-order="{{ $row->total_total_tarif }}">
-                    Rp {{ number_format($row->total_total_tarif, 0, ',', '.') }}
+                  <td class="text-end fw-semibold {{ $row->total_selisih >= 0 ? 'text-success' : 'text-danger' }}" data-order="{{ $row->total_selisih }}">
+                    Rp {{ number_format($row->total_selisih, 0, ',', '.') }}
                   </td>
                 </tr>
               @endforeach
@@ -375,10 +375,10 @@
                   <td><span class="badge bg-light text-dark font-weight-bold">{{ $monthName }}</span></td>
                   <td><b>{{ $row->ksm ?: 'Tidak Terdaftar/Lain-lain' }}</b></td>
                   <td class="text-center font-weight-bold" data-order="{{ $row->patient_count }}">{{ $row->patient_count }}</td>
-                  <td class="text-end" data-order="{{ $row->total_total_tarif + $row->total_tarif_rs }}">Rp {{ number_format($row->total_total_tarif + $row->total_tarif_rs, 0, ',', '.') }}</td>
+                  <td class="text-end" data-order="{{ $row->total_total_tarif }}">Rp {{ number_format($row->total_total_tarif, 0, ',', '.') }}</td>
                   <td class="text-end" data-order="{{ $row->total_tarif_rs }}">Rp {{ number_format($row->total_tarif_rs, 0, ',', '.') }}</td>
-                  <td class="text-end fw-semibold {{ $row->total_total_tarif >= 0 ? 'text-success' : 'text-danger' }}" data-order="{{ $row->total_total_tarif }}">
-                    Rp {{ number_format($row->total_total_tarif, 0, ',', '.') }}
+                  <td class="text-end fw-semibold {{ $row->total_selisih >= 0 ? 'text-success' : 'text-danger' }}" data-order="{{ $row->total_selisih }}">
+                    Rp {{ number_format($row->total_selisih, 0, ',', '.') }}
                   </td>
                 </tr>
               @endforeach
