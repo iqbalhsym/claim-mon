@@ -90,70 +90,70 @@ class Doctor extends Model
         // 4. Fallback: Deteksi KSM berdasarkan pola teks gelar spesialis di nama DPJP
         $normalizedTitle = str_replace([' ', '.'], '', strtoupper($dpjp));
         if (strpos($normalizedTitle, 'SPOG') !== false) {
-            return 'Dokter Spesialis Kebidanan dan Kandungan';
+            return 'KSM Obstetri dan Ginekologi';
         }
         if (strpos($normalizedTitle, 'SPPD') !== false) {
-            return 'Dokter Spesialis Penyakit Dalam';
+            return 'KSM Ilmu Penyakit Dalam';
         }
         if (strpos($normalizedTitle, 'SPA') !== false) {
-            return 'Dokter Spesialis Anak';
+            return 'KSM Ilmu Kesehatan Anak';
         }
         if (strpos($normalizedTitle, 'SPB') !== false) {
             if (strpos($normalizedTitle, 'DRG') !== false) {
-                return 'Dokter Gigi Spesialis Bedah Mulut';
+                return 'KSM Gigi dan Mulut';
             }
-            return 'Dokter Spesialis Bedah';
+            return 'KSM Ilmu Bedah';
         }
         if (strpos($normalizedTitle, 'SPU') !== false) {
-            return 'Dokter Spesialis Urologi';
+            return 'KSM Urologi';
         }
         if (strpos($normalizedTitle, 'SPJP') !== false) {
-            return 'Dokter Spesialis Jantung dan Pembuluh Darah';
+            return 'KSM Kardiologi dan Kedokteran Vaskular';
         }
         if (strpos($normalizedTitle, 'SPBS') !== false) {
-            return 'Dokter Spesialis Bedah Saraf';
+            return 'KSM Ilmu Bedah';
         }
         if (strpos($normalizedTitle, 'SPOT') !== false) {
-            return 'Dokter Spesialis Orthopedi dan Traumatologi';
+            return 'KSM Orthopaedi dan Traumatologi';
         }
         if (strpos($normalizedTitle, 'SPN') !== false || strpos($normalizedTitle, 'SPS') !== false) {
-            return 'Dokter Spesialis Saraf';
+            return 'KSM Neurologi';
         }
         if (strpos($normalizedTitle, 'SPM') !== false) {
-            return 'Dokter Spesialis Mata';
+            return 'KSM Ilmu Kesehatan Mata';
         }
         if (strpos($normalizedTitle, 'SPTHT') !== false) {
-            return 'Dokter Spesialis THT-KL';
+            return 'KSM THT-KL';
         }
         if (strpos($normalizedTitle, 'SPAN') !== false) {
-            return 'Dokter Spesialis Anestesi';
+            return 'KSM Anestesiologi dan Terapi Intensif';
         }
         if (strpos($normalizedTitle, 'SPDVE') !== false || strpos($normalizedTitle, 'SPKK') !== false) {
-            return 'Dokter Spesialis Kulit dan Kelamin';
+            return 'KSM Dermatologi dan Venereologi';
         }
         if (strpos($normalizedTitle, 'SPKJ') !== false) {
-            return 'Dokter Spesialis Kedokteran Jiwa';
+            return 'KSM Ilmu Kesehatan Jiwa';
         }
         if (strpos($normalizedTitle, 'SPRAD') !== false) {
-            return 'Dokter Spesialis Radiologi';
+            return 'KSM Radiologi';
         }
         if (strpos($normalizedTitle, 'SPPK') !== false) {
-            return 'Dokter Spesialis Patologi Klinik';
+            return 'KSM Patologi Klinik';
         }
         if (strpos($normalizedTitle, 'SPPA') !== false) {
-            return 'Dokter Spesialis Patologi Anatomi';
+            return 'KSM Patologi Anatomik';
         }
         if (strpos($normalizedTitle, 'SPKGA') !== false) {
-            return 'Dokter Gigi Spesialis Kedokteran Gigi Anak';
+            return 'KSM Gigi dan Mulut';
         }
         if (strpos($normalizedTitle, 'SPKG') !== false) {
-            return 'Dokter Gigi Spesialis Konservasi Gigi';
+            return 'KSM Gigi dan Mulut';
         }
         if (strpos($normalizedTitle, 'SPORT') !== false) {
-            return 'Dokter Gigi Spesialis Ortodonsia';
+            return 'KSM Gigi dan Mulut';
         }
         if (strpos($normalizedTitle, 'SPPM') !== false) {
-            return 'Dokter Gigi Spesialis Penyakit Mulut';
+            return 'KSM Gigi dan Mulut';
         }
 
         return 'Lain-lain';

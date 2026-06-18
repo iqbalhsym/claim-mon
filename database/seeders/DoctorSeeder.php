@@ -16,7 +16,7 @@ class DoctorSeeder extends Seeder
         // Kosongkan tabel dokter terlebih dahulu
         Doctor::truncate();
 
-        $file = database_path('seeders/DATA DOKTER.xlsx');
+        $file = database_path('seeders/DATA STAF MEDIS RSP UI_05062026.xlsx');
 
         if (!file_exists($file)) {
             if ($this->command) {
@@ -45,11 +45,11 @@ class DoctorSeeder extends Seeder
         $now = now()->toDateTimeString();
 
         for ($row = 2; $row <= $highestRow; $row++) {
-            $nama = trim($sheet->getCell('A' . $row)->getValue() ?? '');
-            $namaGelar = trim($sheet->getCell('B' . $row)->getValue() ?? '');
-            $spesialis = trim($sheet->getCell('C' . $row)->getValue() ?? '');
-            $ksm = trim($sheet->getCell('D' . $row)->getValue() ?? '');
-            $status = trim($sheet->getCell('F' . $row)->getValue() ?? '');
+            $nama = trim($sheet->getCell('B' . $row)->getValue() ?? '');
+            $namaGelar = trim($sheet->getCell('C' . $row)->getValue() ?? '');
+            $status = trim($sheet->getCell('D' . $row)->getValue() ?? '');
+            $ksm = trim($sheet->getCell('E' . $row)->getValue() ?? '');
+            $spesialis = trim($sheet->getCell('F' . $row)->getValue() ?? '');
 
             if (empty($nama)) {
                 continue;
