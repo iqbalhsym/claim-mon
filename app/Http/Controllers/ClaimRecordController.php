@@ -89,6 +89,7 @@ class ClaimRecordController extends Controller
                 $inacbg = trim($sheet->getCell('T' . $row)->getValue() ?? '');
                 $severity = ClaimRecord::parseSeverity($inacbg);
                 $dpjp = trim($sheet->getCell('AX' . $row)->getValue() ?? '');
+                $ksm = \App\Models\Doctor::resolveKsm($dpjp);
 
                 $totalTarif = (float)($sheet->getCell('AM' . $row)->getValue() ?? 0);
                 $tarifRs = (float)($sheet->getCell('AN' . $row)->getValue() ?? 0);
@@ -102,6 +103,7 @@ class ClaimRecordController extends Controller
                     'inacbg' => $inacbg,
                     'severity' => $severity,
                     'dpjp' => $dpjp,
+                    'ksm' => $ksm,
                     'total_tarif' => $totalTarif,
                     'tarif_rs' => $tarifRs,
                     'selisih' => $selisih,
@@ -189,6 +191,25 @@ class ClaimRecordController extends Controller
             ->orderBy('dpjp', 'asc')
             ->get();
 
+        // Query statistik per KSM
+        $queryKsm = ClaimRecord::selectRaw("
+            $monthExpr as month_key,
+            ksm,
+            count(*) as patient_count,
+            sum(total_tarif) as total_total_tarif,
+            sum(tarif_rs) as total_tarif_rs,
+            sum(total_tarif - tarif_rs) as total_selisih
+        ");
+
+        if ($selectedMonth) {
+            $queryKsm->whereRaw("$monthExpr = ?", [$selectedMonth]);
+        }
+
+        $ksmStats = $queryKsm->groupBy('month_key', 'ksm')
+            ->orderBy('month_key', 'desc')
+            ->orderBy('ksm', 'asc')
+            ->get();
+
         // Calculate grand totals
         $grandTotalPatients = $stats->sum('patient_count');
         $grandTotalTarif = $stats->sum('total_total_tarif');
@@ -197,6 +218,7 @@ class ClaimRecordController extends Controller
 
         return view('claim_records.dpjp', compact(
             'stats',
+            'ksmStats',
             'grandTotalPatients',
             'grandTotalTarif',
             'grandTotalRs',
@@ -328,6 +350,112 @@ class ClaimRecordController extends Controller
         // Auto column width
         foreach (range('A', 'G') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+
+        // ================= SHEET 2: LAPORAN KSM =================
+        $sheetKsm = $spreadsheet->createSheet();
+        $sheetKsm->setTitle('Laporan KSM');
+
+        // Query KSM stats untuk diekspor
+        $queryKsm = ClaimRecord::selectRaw("
+            $monthExpr as month_key,
+            ksm,
+            count(*) as patient_count,
+            sum(total_tarif) as total_total_tarif,
+            sum(tarif_rs) as total_tarif_rs,
+            sum(total_tarif - tarif_rs) as total_selisih
+        ");
+
+        if ($selectedMonth) {
+            $queryKsm->whereRaw("$monthExpr = ?", [$selectedMonth]);
+        }
+
+        $ksmStats = $queryKsm->groupBy('month_key', 'ksm')
+            ->orderBy('month_key', 'desc')
+            ->orderBy('ksm', 'asc')
+            ->get();
+
+        // Title Block
+        $sheetKsm->setCellValue('A1', 'LAPORAN KINERJA PER KSM (SPESIALIS)');
+        $sheetKsm->getStyle('A1')->getFont()->setSize(14)->setBold(true);
+        $sheetKsm->setCellValue('A2', $periodeText);
+        $sheetKsm->getStyle('A2')->getFont()->setItalic(true);
+
+        // Headers
+        $ksmHeaders = [
+            'A4' => 'No',
+            'B4' => 'Bulan',
+            'C4' => 'KSM / Spesialis',
+            'D4' => 'Jumlah Pasien',
+            'E4' => 'Total Tarif+INACBG',
+            'F4' => 'Tarif RS (Rp)',
+            'G4' => 'Balance Positif/Negatif'
+        ];
+
+        foreach ($ksmHeaders as $cell => $text) {
+            $sheetKsm->setCellValue($cell, $text);
+            $sheetKsm->getStyle($cell)->getFont()->setBold(true);
+            $sheetKsm->getStyle($cell)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheetKsm->getStyle($cell)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('EAEAEA');
+        }
+
+        $rowIdxKsm = 5;
+        $noKsm = 1;
+
+        $grandTotalPatientsKsm = 0;
+        $grandTotalTarifKsm = 0;
+        $grandTotalRsKsm = 0;
+        $grandTotalSelisihKsm = 0;
+
+        foreach ($ksmStats as $row) {
+            try {
+                $carbon = Carbon::createFromFormat('Y-m', $row->month_key);
+                $monthName = $carbon->translatedFormat('F Y');
+            } catch (\Exception $e) {
+                $monthName = $row->month_key;
+            }
+
+            $sheetKsm->setCellValue('A' . $rowIdxKsm, $noKsm++);
+            $sheetKsm->setCellValue('B' . $rowIdxKsm, $monthName);
+            $sheetKsm->setCellValue('C' . $rowIdxKsm, $row->ksm ?: 'Tidak Terdaftar/Lain-lain');
+            $sheetKsm->setCellValue('D' . $rowIdxKsm, $row->patient_count);
+            $sheetKsm->setCellValue('E' . $rowIdxKsm, $row->total_total_tarif + $row->total_tarif_rs);
+            $sheetKsm->setCellValue('F' . $rowIdxKsm, $row->total_tarif_rs);
+            $sheetKsm->setCellValue('G' . $rowIdxKsm, $row->total_total_tarif);
+
+            // Alignments & formats
+            $sheetKsm->getStyle('A' . $rowIdxKsm)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheetKsm->getStyle('D' . $rowIdxKsm)->getNumberFormat()->setFormatCode('#,##0');
+            $sheetKsm->getStyle('E' . $rowIdxKsm)->getNumberFormat()->setFormatCode('#,##0');
+            $sheetKsm->getStyle('F' . $rowIdxKsm)->getNumberFormat()->setFormatCode('#,##0');
+            $sheetKsm->getStyle('G' . $rowIdxKsm)->getNumberFormat()->setFormatCode('#,##0');
+
+            $grandTotalPatientsKsm += $row->patient_count;
+            $grandTotalTarifKsm += $row->total_total_tarif;
+            $grandTotalRsKsm += $row->total_tarif_rs;
+            $grandTotalSelisihKsm += $row->total_selisih;
+
+            $rowIdxKsm++;
+        }
+
+        // Grand Total row
+        $sheetKsm->setCellValue('A' . $rowIdxKsm, '');
+        $sheetKsm->setCellValue('B' . $rowIdxKsm, '');
+        $sheetKsm->setCellValue('C' . $rowIdxKsm, 'Grand Total');
+        $sheetKsm->setCellValue('D' . $rowIdxKsm, $grandTotalPatientsKsm);
+        $sheetKsm->setCellValue('E' . $rowIdxKsm, $grandTotalTarifKsm + $grandTotalRsKsm);
+        $sheetKsm->setCellValue('F' . $rowIdxKsm, $grandTotalRsKsm);
+        $sheetKsm->setCellValue('G' . $rowIdxKsm, $grandTotalTarifKsm);
+
+        $sheetKsm->getStyle('C' . $rowIdxKsm . ':G' . $rowIdxKsm)->getFont()->setBold(true);
+        $sheetKsm->getStyle('D' . $rowIdxKsm)->getNumberFormat()->setFormatCode('#,##0');
+        $sheetKsm->getStyle('E' . $rowIdxKsm)->getNumberFormat()->setFormatCode('#,##0');
+        $sheetKsm->getStyle('F' . $rowIdxKsm)->getNumberFormat()->setFormatCode('#,##0');
+        $sheetKsm->getStyle('G' . $rowIdxKsm)->getNumberFormat()->setFormatCode('#,##0');
+
+        // Auto column width
+        foreach (range('A', 'G') as $col) {
+            $sheetKsm->getColumnDimension($col)->setAutoSize(true);
         }
 
         $writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Xlsx');

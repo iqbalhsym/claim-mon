@@ -54,6 +54,7 @@ class ClaimRecordSeeder extends Seeder
             $inacbg = trim($sheet->getCell('T' . $row)->getValue() ?? '');
             $severity = ClaimRecord::parseSeverity($inacbg);
             $dpjp = trim($sheet->getCell('AX' . $row)->getValue() ?? '');
+            $ksm = \App\Models\Doctor::resolveKsm($dpjp);
 
             $totalTarif = (float)($sheet->getCell('AM' . $row)->getValue() ?? 0);
             $tarifRs = (float)($sheet->getCell('AN' . $row)->getValue() ?? 0);
@@ -67,6 +68,7 @@ class ClaimRecordSeeder extends Seeder
                 'inacbg' => $inacbg,
                 'severity' => $severity,
                 'dpjp' => $dpjp,
+                'ksm' => $ksm,
                 'total_tarif' => $totalTarif,
                 'tarif_rs' => $tarifRs,
                 'selisih' => $selisih,

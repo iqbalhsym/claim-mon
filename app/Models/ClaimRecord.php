@@ -19,6 +19,7 @@ class ClaimRecord extends Model
         'inacbg',
         'severity',
         'dpjp',
+        'ksm',
         'total_tarif',
         'tarif_rs',
         'selisih',

@@ -220,6 +220,11 @@
           <i data-feather="columns" style="width:14px;height:14px;" class="me-1"></i> Sandingan Perbandingan Bulanan
         </button>
       </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="ksm-tab" data-bs-toggle="tab" data-bs-target="#ksm-pane" type="button" role="tab" aria-controls="ksm-pane" aria-selected="false">
+          <i data-feather="package" style="width:14px;height:14px;" class="me-1"></i> Laporan per KSM (Spesialis)
+        </button>
+      </li>
     </ul>
 
     <!-- Tabs Content -->
@@ -336,6 +341,51 @@
           <div class="text-center py-4 text-muted">Belum ada data untuk perbandingan.</div>
         @endif
       </div>
+      
+      <!-- Tab 3: KSM List -->
+      <div class="tab-pane fade" id="ksm-pane" role="tabpanel" aria-labelledby="ksm-tab">
+        <p class="text-muted small mb-3">
+          <i data-feather="info" class="text-info me-1" style="width:14px;height:14px;"></i> 
+          <b>Tip:</b> Klik header kolom (seperti <b>Jumlah Pasien</b>, <b>Total Tarif+INACBG</b>, atau <b>Balance Positif/Negatif</b>) untuk mengurutkan data per KSM dari yang <b>terbesar ke terendah</b> (atau sebaliknya).
+        </p>
+
+        <div class="table-responsive">
+          <table id="ksmTable" class="table table-striped table-hover table-sm mb-0">
+            <thead>
+              <tr>
+                <th>Bulan</th>
+                <th>KSM / Spesialis</th>
+                <th class="text-center">Jumlah Pasien</th>
+                <th class="text-end">Total Tarif+INACBG</th>
+                <th class="text-end">Tarif RS</th>
+                <th class="text-end">Balance Positif/Negatif</th>
+              </tr>
+            </thead>
+            <tbody>
+              @foreach($ksmStats as $row)
+                @php
+                  try {
+                    $carbon = \Carbon\Carbon::createFromFormat('Y-m', $row->month_key);
+                    $monthName = $carbon->translatedFormat('F Y');
+                  } catch (\Exception $e) {
+                    $monthName = $row->month_key;
+                  }
+                @endphp
+                <tr>
+                  <td><span class="badge bg-light text-dark font-weight-bold">{{ $monthName }}</span></td>
+                  <td><b>{{ $row->ksm ?: 'Tidak Terdaftar/Lain-lain' }}</b></td>
+                  <td class="text-center font-weight-bold" data-order="{{ $row->patient_count }}">{{ $row->patient_count }}</td>
+                  <td class="text-end" data-order="{{ $row->total_total_tarif + $row->total_tarif_rs }}">Rp {{ number_format($row->total_total_tarif + $row->total_tarif_rs, 0, ',', '.') }}</td>
+                  <td class="text-end" data-order="{{ $row->total_tarif_rs }}">Rp {{ number_format($row->total_tarif_rs, 0, ',', '.') }}</td>
+                  <td class="text-end fw-semibold {{ $row->total_total_tarif >= 0 ? 'text-success' : 'text-danger' }}" data-order="{{ $row->total_total_tarif }}">
+                    Rp {{ number_format($row->total_total_tarif, 0, ',', '.') }}
+                  </td>
+                </tr>
+              @endforeach
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -368,6 +418,17 @@ $(document).ready(function() {
     },
     "pageLength": 25,
     "order": [[0, "asc"]]
+  });
+
+  $('#ksmTable').DataTable({
+    "language": {
+      "url": "https://cdn.datatables.net/plug-ins/1.13.6/i18n/id.json"
+    },
+    "pageLength": 25,
+    "order": [[0, "desc"], [2, "desc"]], // Order by Month desc, then Patients count desc
+    "columnDefs": [
+      { "targets": [2, 3, 4, 5], "orderable": true }
+    ]
   });
 
   // Chart JS comparison setup
