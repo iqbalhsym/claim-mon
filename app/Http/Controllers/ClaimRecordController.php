@@ -14,6 +14,19 @@ class ClaimRecordController extends Controller
     {
         $search = $request->query('search');
         $severity = $request->query('severity');
+        $sortBy = $request->query('sort_by', 'discharge_date');
+        $sortDir = strtolower($request->query('sort_dir', 'desc')) === 'asc' ? 'asc' : 'desc';
+
+        $allowedSorts = [
+            'no_rm' => 'no_rm',
+            'nama_pasien' => 'nama_pasien',
+            'discharge_date' => 'discharge_date',
+            'inacbg' => 'inacbg',
+            'severity' => 'severity',
+            'tarif_rs' => 'tarif_rs',
+            'total_tarif' => 'total_tarif',
+            'selisih' => 'selisih',
+        ];
 
         $query = ClaimRecord::query();
 
@@ -31,7 +44,14 @@ class ClaimRecordController extends Controller
         }
 
         $totalFiltered = $query->count();
-        $records = $query->orderBy('discharge_date', 'desc')->paginate(50);
+
+        if (array_key_exists($sortBy, $allowedSorts)) {
+            $query->orderBy($allowedSorts[$sortBy], $sortDir);
+        } else {
+            $query->orderBy('discharge_date', 'desc');
+        }
+
+        $records = $query->paginate(50);
         $totalRecords = ClaimRecord::count();
 
         $driver = DB::connection()->getDriverName();
@@ -47,7 +67,7 @@ class ClaimRecordController extends Controller
             ->filter()
             ->values();
 
-        return view('claim_records.index', compact('records', 'totalRecords', 'totalFiltered', 'search', 'severity', 'availableMonths'));
+        return view('claim_records.index', compact('records', 'totalRecords', 'totalFiltered', 'search', 'severity', 'availableMonths', 'sortBy', 'sortDir'));
     }
 
     public function import(Request $request)
@@ -72,6 +92,14 @@ class ClaimRecordController extends Controller
             $totalInserted = 0;
             $now = now()->toDateTimeString();
 
+            $highestCol = $sheet->getHighestColumn();
+            $highestColIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestCol);
+            $headers = [];
+            for ($col = 1; $col <= $highestColIndex; $col++) {
+                $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+                $headers[$colLetter] = trim($sheet->getCell($colLetter . '1')->getValue() ?? '');
+            }
+
             for ($row = 2; $row <= $highestRow; $row++) {
                 $noRm = trim($sheet->getCell('AU' . $row)->getValue() ?? '');
                 $namaPasien = trim($sheet->getCell('AT' . $row)->getValue() ?? '');
@@ -95,6 +123,16 @@ class ClaimRecordController extends Controller
                 $tarifRs = (float)($sheet->getCell('AN' . $row)->getValue() ?? 0);
                 $selisih = $totalTarif - $tarifRs;
 
+                // Build raw data
+                $rawData = [];
+                for ($col = 1; $col <= $highestColIndex; $col++) {
+                    $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+                    $headerName = $headers[$colLetter] ?? $colLetter;
+                    if (!empty($headerName)) {
+                        $rawData[$headerName] = $sheet->getCell($colLetter . $row)->getValue();
+                    }
+                }
+
                 $batch[] = [
                     'no_rm' => $noRm,
                     'nama_pasien' => $namaPasien,
@@ -107,6 +145,7 @@ class ClaimRecordController extends Controller
                     'total_tarif' => $totalTarif,
                     'tarif_rs' => $tarifRs,
                     'selisih' => $selisih,
+                    'raw_data' => json_encode($rawData),
                     'created_at' => $now,
                     'updated_at' => $now,
                 ];
@@ -216,6 +255,41 @@ class ClaimRecordController extends Controller
         $grandTotalRs = $stats->sum('total_tarif_rs');
         $grandTotalSelisih = $stats->sum('total_selisih');
 
+        // Query detail dokter per KSM untuk modal detail
+        $queryKsmDetails = ClaimRecord::selectRaw("
+            $monthExpr as month_key,
+            ksm,
+            dpjp,
+            count(*) as patient_count,
+            sum(total_tarif) as total_total_tarif,
+            sum(tarif_rs) as total_tarif_rs,
+            sum(total_tarif - tarif_rs) as total_selisih
+        ");
+
+        if ($selectedMonth) {
+            $queryKsmDetails->whereRaw("$monthExpr = ?", [$selectedMonth]);
+        }
+
+        $ksmDetails = $queryKsmDetails->groupBy('month_key', 'ksm', 'dpjp')
+            ->orderBy('month_key', 'desc')
+            ->orderBy('ksm', 'asc')
+            ->orderBy('dpjp', 'asc')
+            ->get();
+
+        $ksmDetailsGrouped = [];
+        foreach ($ksmDetails as $detail) {
+            $mKey = $detail->month_key;
+            $kKey = $detail->ksm ?: 'Tidak Terdaftar/Lain-lain';
+            $ksmDetailsGrouped[$mKey][$kKey][] = [
+                'dpjp' => $detail->dpjp ?: 'Tanpa Nama Dokter',
+                'patient_count' => (int)$detail->patient_count,
+                'total_tarif' => (float)$detail->total_total_tarif,
+                'tarif_rs' => (float)$detail->total_tarif_rs,
+                'selisih' => (float)$detail->total_selisih,
+            ];
+        }
+        $ksmDetailsJson = json_encode($ksmDetailsGrouped);
+
         return view('claim_records.dpjp', compact(
             'stats',
             'ksmStats',
@@ -223,6 +297,76 @@ class ClaimRecordController extends Controller
             'grandTotalTarif',
             'grandTotalRs',
             'grandTotalSelisih',
+            'availableMonths',
+            'selectedMonth',
+            'ksmDetailsJson'
+        ));
+    }
+
+    public function ksmReport(Request $request, $ksm)
+    {
+        $selectedMonth = $request->query('month');
+
+        $driver = DB::connection()->getDriverName();
+        $monthExpr = $driver === 'pgsql'
+            ? "to_char(discharge_date, 'YYYY-MM')"
+            : "strftime('%Y-%m', discharge_date)";
+
+        // Get available months for dropdown filter
+        $availableMonths = ClaimRecord::selectRaw("$monthExpr as month_key")
+            ->whereNotNull('discharge_date')
+            ->groupBy('month_key')
+            ->orderBy('month_key', 'desc')
+            ->pluck('month_key')
+            ->filter()
+            ->values();
+
+        $query = ClaimRecord::selectRaw("
+            $monthExpr as month_key,
+            ksm,
+            dpjp,
+            count(*) as patient_count,
+            sum(total_tarif) as total_total_tarif,
+            sum(tarif_rs) as total_tarif_rs,
+            sum(total_tarif - tarif_rs) as total_selisih
+        ")
+        ->where(function($q) use ($ksm) {
+            if ($ksm === 'Tidak Terdaftar/Lain-lain' || $ksm === 'Lain-lain') {
+                $q->whereNull('ksm')->orWhere('ksm', '')->orWhere('ksm', 'Lain-lain');
+            } else {
+                $q->where('ksm', $ksm);
+            }
+        });
+
+        if ($selectedMonth) {
+            $query->whereRaw("$monthExpr = ?", [$selectedMonth]);
+        }
+
+        $stats = $query->groupBy('month_key', 'ksm', 'dpjp')
+            ->orderBy('month_key', 'desc')
+            ->orderBy('patient_count', 'desc')
+            ->get();
+
+        $totalPatients = $stats->sum('patient_count');
+        $totalTarif = $stats->sum('total_total_tarif');
+        $totalRs = $stats->sum('total_tarif_rs');
+        $totalBalance = $stats->sum('total_selisih');
+
+        // Top 5 by Patient Count
+        $top5Patients = $stats->sortByDesc('patient_count')->take(5)->values();
+
+        // Top 5 by INACBG Tariff
+        $top5Finance = $stats->sortByDesc('total_total_tarif')->take(5)->values();
+
+        return view('claim_records.ksm_detail', compact(
+            'ksm',
+            'stats',
+            'totalPatients',
+            'totalTarif',
+            'totalRs',
+            'totalBalance',
+            'top5Patients',
+            'top5Finance',
             'availableMonths',
             'selectedMonth'
         ));
@@ -281,7 +425,7 @@ class ClaimRecordController extends Controller
             'B4' => 'Bulan',
             'C4' => 'Nama Dokter (DPJP)',
             'D4' => 'Jumlah Pasien',
-            'E4' => 'Total Tarif+INACBG',
+            'E4' => 'Total Tarif INACBG',
             'F4' => 'Tarif RS (Rp)',
             'G4' => 'Balance Positif/Negatif'
         ];
@@ -387,7 +531,7 @@ class ClaimRecordController extends Controller
             'B4' => 'Bulan',
             'C4' => 'KSM / Spesialis',
             'D4' => 'Jumlah Pasien',
-            'E4' => 'Total Tarif+INACBG',
+            'E4' => 'Total Tarif INACBG',
             'F4' => 'Tarif RS (Rp)',
             'G4' => 'Balance Positif/Negatif'
         ];
@@ -519,7 +663,7 @@ class ClaimRecordController extends Controller
             'E1' => 'Severity',
             'F1' => 'DPJP (Dokter)',
             'G1' => 'Tarif RS',
-            'H1' => 'Total Tarif+INACBG',
+            'H1' => 'Total Tarif INACBG',
             'I1' => 'Balance Positif/Negatif'
         ];
 
@@ -569,6 +713,30 @@ class ClaimRecordController extends Controller
                 'Cache-Control' => 'max-age=0',
             ]
         );
+    }
+
+    public function show($id)
+    {
+        $record = ClaimRecord::findOrFail($id);
+
+        return response()->json([
+            'id' => $record->id,
+            'no_rm' => $record->no_rm,
+            'nama_pasien' => $record->nama_pasien,
+            'admission_date' => $record->admission_date ? $record->admission_date->format('Y-m-d') : '-',
+            'discharge_date' => $record->discharge_date ? $record->discharge_date->format('Y-m-d') : '-',
+            'inacbg' => $record->inacbg,
+            'severity' => $record->severity,
+            'dpjp' => $record->dpjp ?: 'Tanpa Nama Dokter',
+            'ksm' => $record->ksm ?: 'Tidak Terdaftar/Lain-lain',
+            'total_tarif' => (float)$record->total_tarif,
+            'tarif_rs' => (float)$record->tarif_rs,
+            'selisih' => (float)$record->selisih,
+            'total_tarif_formatted' => 'Rp ' . number_format($record->total_tarif, 0, ',', '.'),
+            'tarif_rs_formatted' => 'Rp ' . number_format($record->tarif_rs, 0, ',', '.'),
+            'selisih_formatted' => 'Rp ' . number_format($record->selisih, 0, ',', '.'),
+            'raw_data' => $record->raw_data,
+        ]);
     }
 
     private function parseExcelDate($value): ?Carbon

@@ -233,7 +233,7 @@
       <div class="tab-pane fade show active" id="detail-pane" role="tabpanel" aria-labelledby="detail-tab">
         <p class="text-muted small mb-3">
           <i data-feather="info" class="text-info me-1" style="width:14px;height:14px;"></i> 
-          <b>Tip:</b> Klik header kolom (seperti <b>Jumlah Pasien</b>, <b>Total Tarif+INACBG</b>, atau <b>Balance Positif/Negatif</b>) untuk mengurutkan data dari yang <b>terbesar ke terendah</b> (atau sebaliknya).
+          <b>Tip:</b> Klik header kolom (seperti <b>Jumlah Pasien</b>, <b>Total Tarif INACBG</b>, atau <b>Balance Positif/Negatif</b>) untuk mengurutkan data dari yang <b>terbesar ke terendah</b> (atau sebaliknya).
         </p>
 
         <div class="table-responsive">
@@ -243,7 +243,7 @@
                 <th>Bulan</th>
                 <th>Nama Dokter (DPJP)</th>
                 <th class="text-center">Jumlah Pasien</th>
-                <th class="text-end">Total Tarif+INACBG</th>
+                <th class="text-end">Total Tarif INACBG</th>
                 <th class="text-end">Tarif RS</th>
                 <th class="text-end">Balance Positif/Negatif</th>
               </tr>
@@ -309,7 +309,7 @@
                       }
                     @endphp
                     <th class="text-center bg-light border-start small">{{ $monthLabel }}<br><span class="fw-normal text-muted">Pasien</span></th>
-                    <th class="text-end bg-light small">{{ $monthLabel }}<br><span class="fw-normal text-muted">Tarif+INACBG</span></th>
+                    <th class="text-end bg-light small">{{ $monthLabel }}<br><span class="fw-normal text-muted">Tarif INACBG</span></th>
                     <th class="text-end bg-light small">{{ $monthLabel }}<br><span class="fw-normal text-muted">Balance</span></th>
                   @endforeach
                 </tr>
@@ -346,7 +346,7 @@
       <div class="tab-pane fade" id="ksm-pane" role="tabpanel" aria-labelledby="ksm-tab">
         <p class="text-muted small mb-3">
           <i data-feather="info" class="text-info me-1" style="width:14px;height:14px;"></i> 
-          <b>Tip:</b> Klik header kolom (seperti <b>Jumlah Pasien</b>, <b>Total Tarif+INACBG</b>, atau <b>Balance Positif/Negatif</b>) untuk mengurutkan data per KSM dari yang <b>terbesar ke terendah</b> (atau sebaliknya).
+          <b>Tip:</b> Klik pada baris KSM untuk melihat rincian performa dokter. Klik header kolom (seperti <b>Jumlah Pasien</b>, <b>Total Tarif INACBG</b>, atau <b>Balance Positif/Negatif</b>) untuk mengurutkan.
         </p>
 
         <div class="table-responsive">
@@ -356,7 +356,7 @@
                 <th>Bulan</th>
                 <th>KSM / Spesialis</th>
                 <th class="text-center">Jumlah Pasien</th>
-                <th class="text-end">Total Tarif+INACBG</th>
+                <th class="text-end">Total Tarif INACBG</th>
                 <th class="text-end">Tarif RS</th>
                 <th class="text-end">Balance Positif/Negatif</th>
               </tr>
@@ -371,7 +371,7 @@
                     $monthName = $row->month_key;
                   }
                 @endphp
-                <tr>
+                <tr class="ksm-row" style="cursor: pointer;" data-ksm="{{ $row->ksm ?: 'Tidak Terdaftar/Lain-lain' }}" data-month-key="{{ $row->month_key }}" data-month-name="{{ $monthName }}">
                   <td><span class="badge bg-light text-dark font-weight-bold">{{ $monthName }}</span></td>
                   <td><b>{{ $row->ksm ?: 'Tidak Terdaftar/Lain-lain' }}</b></td>
                   <td class="text-center font-weight-bold" data-order="{{ $row->patient_count }}">{{ $row->patient_count }}</td>
@@ -390,6 +390,8 @@
 
   </div>
 </div>
+
+
 @endsection
 
 @section('js')
@@ -530,6 +532,23 @@ $(document).ready(function() {
       }
     });
   }
+
+  // Auto-activate KSM Tab if passed in URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const activeTab = urlParams.get('tab');
+  if (activeTab === 'ksm') {
+      const triggerEl = document.querySelector('#dpjpReportTabs button[id="ksm-tab"]');
+      if (triggerEl) {
+          bootstrap.Tab.getOrCreateInstance(triggerEl).show();
+      }
+  }
+
+  // Redirect on KSM row click
+  $('.ksm-row').on('click', function() {
+      const ksm = $(this).data('ksm');
+      const monthKey = $(this).data('month-key') || '';
+      window.location.href = `{{ url('dpjp-report/ksm') }}/${encodeURIComponent(ksm)}?month=${monthKey}`;
+  });
 });
 </script>
 

@@ -23,6 +23,7 @@ class ClaimRecord extends Model
         'total_tarif',
         'tarif_rs',
         'selisih',
+        'raw_data',
     ];
 
     protected $casts = [
@@ -31,6 +32,7 @@ class ClaimRecord extends Model
         'total_tarif' => 'decimal:2',
         'tarif_rs' => 'decimal:2',
         'selisih' => 'decimal:2',
+        'raw_data' => 'array',
     ];
 
     /**

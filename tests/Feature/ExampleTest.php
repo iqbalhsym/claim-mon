@@ -170,4 +170,232 @@ class ExampleTest extends TestCase
         $this->assertEquals(1, \App\Models\ClaimRecord::count());
         $this->assertEquals('Pasien Feb', \App\Models\ClaimRecord::first()->nama_pasien);
     }
+
+    /**
+     * Test retrieving patient detail as JSON.
+     */
+    public function test_show_patient_detail_returns_json(): void
+    {
+        $user = User::where('username', 'adminarya')->first() ?: User::create([
+            'name' => 'Admin Arya',
+            'username' => 'adminarya',
+            'email' => 'adminarya@gmail.com',
+            'role' => 'administrator',
+            'password' => bcrypt('admin123'),
+        ]);
+
+        $claim = \App\Models\ClaimRecord::create([
+            'no_rm' => '12345-RM',
+            'nama_pasien' => 'John Doe',
+            'admission_date' => '2026-01-01',
+            'discharge_date' => '2026-01-05',
+            'inacbg' => 'N-1-40-I',
+            'severity' => 'I',
+            'dpjp' => 'Dr. Smith',
+            'ksm' => 'Penyakit Dalam',
+            'total_tarif' => 12500000.50,
+            'tarif_rs' => 10000000.00,
+            'selisih' => 2500000.50,
+        ]);
+
+        $response = $this->actingAs($user)->get("/claim-records/{$claim->id}");
+
+        $response->assertStatus(200);
+        $response->assertJson([
+            'no_rm' => '12345-RM',
+            'nama_pasien' => 'John Doe',
+            'inacbg' => 'N-1-40-I',
+            'severity' => 'I',
+            'dpjp' => 'Dr. Smith',
+            'ksm' => 'Penyakit Dalam',
+            'total_tarif' => 12500000.50,
+            'tarif_rs' => 10000000.00,
+            'selisih' => 2500000.50,
+            'total_tarif_formatted' => 'Rp 12.500.001',
+            'tarif_rs_formatted' => 'Rp 10.000.000',
+            'selisih_formatted' => 'Rp 2.500.001',
+        ]);
+    }
+
+    /**
+     * Test retrieving patient detail includes raw_data.
+     */
+    public function test_patient_detail_includes_raw_data(): void
+    {
+        $user = User::where('username', 'adminarya')->first() ?: User::create([
+            'name' => 'Admin Arya',
+            'username' => 'adminarya',
+            'email' => 'adminarya@gmail.com',
+            'role' => 'administrator',
+            'password' => bcrypt('admin123'),
+        ]);
+
+        $claim = \App\Models\ClaimRecord::create([
+            'no_rm' => '99999-RM',
+            'nama_pasien' => 'Jane Doe',
+            'admission_date' => '2026-01-01',
+            'discharge_date' => '2026-01-05',
+            'inacbg' => 'N-1-40-I',
+            'severity' => 'I',
+            'dpjp' => 'Dr. Jones',
+            'ksm' => 'Penyakit Dalam',
+            'total_tarif' => 5000000.00,
+            'tarif_rs' => 4500000.00,
+            'selisih' => 500000.00,
+            'raw_data' => ['KODE_RS' => '12345', 'NAMA_PASIEN' => 'Jane Doe', 'LOS' => '4'],
+        ]);
+
+        $response = $this->actingAs($user)->get("/claim-records/{$claim->id}");
+
+        $response->assertStatus(200);
+        $response->assertJson([
+            'no_rm' => '99999-RM',
+            'raw_data' => [
+                'KODE_RS' => '12345',
+                'NAMA_PASIEN' => 'Jane Doe',
+                'LOS' => '4',
+            ]
+        ]);
+    }
+
+    /**
+     * Test sorting on claim records index.
+     */
+    public function test_claim_records_sorting(): void
+    {
+        $user = User::where('username', 'adminarya')->first() ?: User::create([
+            'name' => 'Admin Arya',
+            'username' => 'adminarya',
+            'email' => 'adminarya@gmail.com',
+            'role' => 'administrator',
+            'password' => bcrypt('admin123'),
+        ]);
+
+        // Clean table first to ensure strict sorting checks
+        \App\Models\ClaimRecord::truncate();
+
+        $claimLow = \App\Models\ClaimRecord::create([
+            'no_rm' => '10001-RM',
+            'nama_pasien' => 'A Patient',
+            'admission_date' => '2026-01-01',
+            'discharge_date' => '2026-01-02',
+            'inacbg' => 'N-1-40-I',
+            'severity' => 'I',
+            'dpjp' => 'Dr. Smith',
+            'total_tarif' => 1000000.00,
+            'tarif_rs' => 900000.00,
+            'selisih' => 100000.00,
+        ]);
+
+        $claimHigh = \App\Models\ClaimRecord::create([
+            'no_rm' => '20002-RM',
+            'nama_pasien' => 'Z Patient',
+            'admission_date' => '2026-01-01',
+            'discharge_date' => '2026-01-05',
+            'inacbg' => 'N-1-40-III',
+            'severity' => 'III',
+            'dpjp' => 'Dr. Jones',
+            'total_tarif' => 9000000.00,
+            'tarif_rs' => 8000000.00,
+            'selisih' => 1000000.00,
+        ]);
+
+        // Ascending by total_tarif
+        $responseAsc = $this->actingAs($user)->get('/claim-records?sort_by=total_tarif&sort_dir=asc');
+        $responseAsc->assertStatus(200);
+        $recordsAsc = $responseAsc->viewData('records');
+        $this->assertEquals('A Patient', $recordsAsc[0]->nama_pasien);
+        $this->assertEquals('Z Patient', $recordsAsc[1]->nama_pasien);
+
+        // Descending by total_tarif
+        $responseDesc = $this->actingAs($user)->get('/claim-records?sort_by=total_tarif&sort_dir=desc');
+        $responseDesc->assertStatus(200);
+        $recordsDesc = $responseDesc->viewData('records');
+        $this->assertEquals('Z Patient', $recordsDesc[0]->nama_pasien);
+        $this->assertEquals('A Patient', $recordsDesc[1]->nama_pasien);
+    }
+
+    /**
+     * Test DPJP report passes KSM doctor details JSON.
+     */
+    public function test_dpjp_report_includes_ksm_details_json(): void
+    {
+        $user = User::where('username', 'adminarya')->first() ?: User::create([
+            'name' => 'Admin Arya',
+            'username' => 'adminarya',
+            'email' => 'adminarya@gmail.com',
+            'role' => 'administrator',
+            'password' => bcrypt('admin123'),
+        ]);
+
+        \App\Models\ClaimRecord::create([
+            'no_rm' => '12345-RM',
+            'nama_pasien' => 'John Doe',
+            'admission_date' => '2026-01-01',
+            'discharge_date' => '2026-01-05',
+            'inacbg' => 'N-1-40-I',
+            'severity' => 'I',
+            'dpjp' => 'Dr. Smith',
+            'ksm' => 'Penyakit Dalam',
+            'total_tarif' => 12500000.00,
+            'tarif_rs' => 10000000.00,
+            'selisih' => 2500000.00,
+        ]);
+
+        $response = $this->actingAs($user)->get('/dpjp-report');
+
+        $response->assertStatus(200);
+        $response->assertViewHas('ksmDetailsJson');
+        
+        $ksmDetailsJson = $response->viewData('ksmDetailsJson');
+        $this->assertJson($ksmDetailsJson);
+        
+        $data = json_decode($ksmDetailsJson, true);
+        $this->assertArrayHasKey('2026-01', $data);
+        $this->assertArrayHasKey('Penyakit Dalam', $data['2026-01']);
+        
+        $doctorStats = $data['2026-01']['Penyakit Dalam'][0];
+        $this->assertEquals('Dr. Smith', $doctorStats['dpjp']);
+        $this->assertEquals(1, $doctorStats['patient_count']);
+        $this->assertEquals(12500000.00, $doctorStats['total_tarif']);
+        $this->assertEquals(10000000.00, $doctorStats['tarif_rs']);
+        $this->assertEquals(2500000.00, $doctorStats['selisih']);
+    }
+
+    /**
+     * Test KSM detail report page loads successfully.
+     */
+    public function test_ksm_report_page_loads_successfully(): void
+    {
+        $user = User::where('username', 'adminarya')->first() ?: User::create([
+            'name' => 'Admin Arya',
+            'username' => 'adminarya',
+            'email' => 'adminarya@gmail.com',
+            'role' => 'administrator',
+            'password' => bcrypt('admin123'),
+        ]);
+
+        \App\Models\ClaimRecord::create([
+            'no_rm' => '12345-RM',
+            'nama_pasien' => 'John Doe',
+            'admission_date' => '2026-01-01',
+            'discharge_date' => '2026-01-05',
+            'inacbg' => 'N-1-40-I',
+            'severity' => 'I',
+            'dpjp' => 'Dr. Smith',
+            'ksm' => 'Penyakit Dalam',
+            'total_tarif' => 12500000.00,
+            'tarif_rs' => 10000000.00,
+            'selisih' => 2500000.00,
+        ]);
+
+        $response = $this->actingAs($user)->get('/dpjp-report/ksm/Penyakit Dalam?month=2026-01');
+
+        $response->assertStatus(200);
+        $response->assertViewHas('ksm', 'Penyakit Dalam');
+        $response->assertViewHas('totalPatients', 1);
+        $response->assertViewHas('totalTarif', 12500000.00);
+        $response->assertViewHas('totalRs', 10000000.00);
+        $response->assertViewHas('totalBalance', 2500000.00);
+    }
 }

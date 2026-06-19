@@ -30,8 +30,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('claim-records/export', [ClaimRecordController::class, 'export'])->name('claim-records.export');
     Route::post('claim-records/import', [ClaimRecordController::class, 'import'])->name('claim-records.import');
     Route::delete('claim-records/truncate', [ClaimRecordController::class, 'truncate'])->name('claim-records.truncate');
+    Route::get('claim-records/{id}', [ClaimRecordController::class, 'show'])->name('claim-records.show');
     Route::get('dpjp-report', [ClaimRecordController::class, 'dpjpReport'])->name('claim-records.dpjp');
     Route::get('dpjp-report/export', [ClaimRecordController::class, 'exportDpjp'])->name('claim-records.dpjp.export');
+    Route::get('dpjp-report/ksm/{ksm}', [ClaimRecordController::class, 'ksmReport'])->name('claim-records.dpjp.ksm')->where('ksm', '.*');
 
     // --- MANAJEMEN AKUN (Hanya Administrator) ---
     Route::middleware(['role:administrator'])->prefix('users')->name('users.')->group(function () {

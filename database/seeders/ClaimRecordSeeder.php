@@ -36,6 +36,14 @@ class ClaimRecordSeeder extends Seeder
         $totalInserted = 0;
         $now = now()->toDateTimeString();
 
+        $highestCol = $sheet->getHighestColumn();
+        $highestColIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestCol);
+        $headers = [];
+        for ($col = 1; $col <= $highestColIndex; $col++) {
+            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+            $headers[$colLetter] = trim($sheet->getCell($colLetter . '1')->getValue() ?? '');
+        }
+
         for ($row = 2; $row <= $highestRow; $row++) {
             $noRm = trim($sheet->getCell('AU' . $row)->getValue() ?? '');
             $namaPasien = trim($sheet->getCell('AT' . $row)->getValue() ?? '');
@@ -60,6 +68,16 @@ class ClaimRecordSeeder extends Seeder
             $tarifRs = (float)($sheet->getCell('AN' . $row)->getValue() ?? 0);
             $selisih = $totalTarif - $tarifRs;
 
+            // Build raw data
+            $rawData = [];
+            for ($col = 1; $col <= $highestColIndex; $col++) {
+                $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+                $headerName = $headers[$colLetter] ?? $colLetter;
+                if (!empty($headerName)) {
+                    $rawData[$headerName] = $sheet->getCell($colLetter . $row)->getValue();
+                }
+            }
+
             $batch[] = [
                 'no_rm' => $noRm,
                 'nama_pasien' => $namaPasien,
@@ -72,6 +90,7 @@ class ClaimRecordSeeder extends Seeder
                 'total_tarif' => $totalTarif,
                 'tarif_rs' => $tarifRs,
                 'selisih' => $selisih,
+                'raw_data' => json_encode($rawData),
                 'created_at' => $now,
                 'updated_at' => $now,
             ];
