@@ -317,7 +317,11 @@
               <tbody>
                 @foreach($dpjpPivot as $docName => $monthData)
                   <tr>
-                    <td><b>{{ $docName }}</b></td>
+                    <td>
+                      <a href="javascript:void(0)" class="text-primary fw-bold text-decoration-none doctor-name-link" data-doc="{{ $docName }}" data-bs-toggle="modal" data-bs-target="#doctorChartModal">
+                        {{ $docName }}
+                      </a>
+                    </td>
                     @foreach($uniqueMonths as $mKey)
                       @php
                         $data = $monthData[$mKey] ?? null;
@@ -388,6 +392,60 @@
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- Modal for Doctor Charts -->
+<div class="modal fade" id="doctorChartModal" tabindex="-1" aria-labelledby="doctorChartModalLabel" aria-hidden="true">
+  <div class="modal-dialog" style="max-width: 95%;">
+    <div class="modal-content" style="background-color: var(--card-bg); color: var(--text-color);">
+      <div class="modal-header border-bottom border-secondary">
+        <h5 class="modal-title" id="doctorChartModalLabel">
+          <i data-feather="bar-chart" style="width:18px;height:18px;" class="me-2 text-primary"></i>Grafik Perbandingan Bulanan: <span id="modalDoctorName" class="text-primary fw-bold"></span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body pb-4">
+        <div class="row g-4">
+          <!-- Grafik Pasien -->
+          <div class="col-md-4">
+            <div class="card shadow-none border">
+              <div class="card-body p-3">
+                <h6 class="text-center mb-3 fw-semibold">Grafik Pasien</h6>
+                <div style="position: relative; height: 350px;">
+                  <canvas id="modalPatientChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Grafik Tarif INACBG -->
+          <div class="col-md-4">
+            <div class="card shadow-none border">
+              <div class="card-body p-3">
+                <h6 class="text-center mb-3 fw-semibold">Grafik Tarif INACBG</h6>
+                <div style="position: relative; height: 350px;">
+                  <canvas id="modalTariffChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Grafik Balance -->
+          <div class="col-md-4">
+            <div class="card shadow-none border">
+              <div class="card-body p-3">
+                <h6 class="text-center mb-3 fw-semibold">Grafik Balance</h6>
+                <div style="position: relative; height: 350px;">
+                  <canvas id="modalBalanceChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer border-top border-secondary">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -529,6 +587,153 @@ $(document).ready(function() {
             ticks: { color: labelColor }
           }
         }
+      }
+    });
+
+    // Chart instances for Modal
+    let modalPatientChartInstance = null;
+    let modalTariffChartInstance = null;
+    let modalBalanceChartInstance = null;
+
+    $('.doctor-name-link').on('click', function() {
+      const docName = $(this).data('doc');
+      $('#modalDoctorName').text(docName);
+      
+      const docData = pivotData[docName] || {};
+      
+      const patientData = uniqueMonths.map(m => docData[m] ? docData[m].patients : 0);
+      const tariffData = uniqueMonths.map(m => docData[m] ? docData[m].total_tarif : 0);
+      const balanceData = uniqueMonths.map(m => docData[m] ? docData[m].balance : 0);
+
+      if(modalPatientChartInstance) modalPatientChartInstance.destroy();
+      if(modalTariffChartInstance) modalTariffChartInstance.destroy();
+      if(modalBalanceChartInstance) modalBalanceChartInstance.destroy();
+
+      const ctxPatient = document.getElementById('modalPatientChart').getContext('2d');
+      const ctxTariff = document.getElementById('modalTariffChart').getContext('2d');
+      const ctxBalance = document.getElementById('modalBalanceChart').getContext('2d');
+
+      const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: {
+          padding: { top: 20 }
+        },
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: labelColor } },
+          y: { 
+            grid: { color: gridColor }, 
+            ticks: { color: labelColor },
+            grace: '15%' // Ensures highest values and labels are not cut off
+          }
+        }
+      };
+
+      // 1. Patient Chart
+      modalPatientChartInstance = new Chart(ctxPatient, {
+        type: 'bar',
+        plugins: [chartDatalabelsPlugin], // Reuse inline datalabels plugin
+        data: {
+          labels: monthLabels,
+          datasets: [{
+            label: 'Jumlah Pasien',
+            data: patientData,
+            backgroundColor: '#0f5da6',
+            borderRadius: 4
+          }]
+        },
+        options: commonOptions
+      });
+
+      // 2. Tarif INACBG Chart
+      modalTariffChartInstance = new Chart(ctxTariff, {
+        type: 'bar',
+        data: {
+          labels: monthLabels,
+          datasets: [{
+            label: 'Tarif INACBG',
+            data: tariffData,
+            backgroundColor: '#fbbc06',
+            borderRadius: 4
+          }]
+        },
+        options: Object.assign({}, commonOptions, {
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  let value = context.parsed.y;
+                  return 'Rp ' + new Intl.NumberFormat('id-ID').format(value);
+                }
+              }
+            }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: labelColor } },
+            y: { 
+              grace: '15%',
+              grid: { color: gridColor }, 
+              ticks: { 
+                color: labelColor,
+                callback: function(value) {
+                  if(value >= 1000000) return (value / 1000000).toFixed(0) + 'Jt';
+                  return value;
+                }
+              } 
+            }
+          }
+        })
+      });
+
+      // 3. Balance Chart
+      modalBalanceChartInstance = new Chart(ctxBalance, {
+        type: 'bar',
+        data: {
+          labels: monthLabels,
+          datasets: [{
+            label: 'Balance',
+            data: balanceData,
+            backgroundColor: balanceData.map(v => v >= 0 ? '#05a34a' : '#ff3366'),
+            borderRadius: 4
+          }]
+        },
+        options: Object.assign({}, commonOptions, {
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  let value = context.parsed.y;
+                  return 'Rp ' + new Intl.NumberFormat('id-ID').format(value);
+                }
+              }
+            }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: labelColor } },
+            y: { 
+              grace: '15%',
+              grid: { color: gridColor }, 
+              ticks: { 
+                color: labelColor,
+                callback: function(value) {
+                  let absVal = Math.abs(value);
+                  if(absVal >= 1000000) return (value < 0 ? '-' : '') + (absVal / 1000000).toFixed(0) + 'Jt';
+                  return value;
+                }
+              } 
+            }
+          }
+        })
+      });
+
+      // Re-render feather icons in modal just in case
+      if(typeof feather !== 'undefined') {
+        feather.replace();
       }
     });
   }
