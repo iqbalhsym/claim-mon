@@ -549,11 +549,25 @@ $(document).ready(function() {
             const val = dataset.data[index];
             if (val === null || val === undefined || val === 0) return;
             
+            let displayVal;
+            let absVal = Math.abs(val);
+            if (absVal >= 1000000) {
+              displayVal = (val < 0 ? '-' : '') + (absVal / 1000000).toFixed(1).replace('.0', '') + 'Jt';
+            } else {
+              displayVal = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(val);
+            }
+            
             ctx.fillStyle = isDark ? '#ffffff' : '#2e3a59';
             ctx.font = 'bold 9px sans-serif';
             ctx.textAlign = 'center';
-            ctx.textBaseline = 'bottom';
-            ctx.fillText(val, bar.x, bar.y - 4);
+            
+            if (val >= 0) {
+              ctx.textBaseline = 'bottom';
+              ctx.fillText(displayVal, bar.x, bar.y - 4);
+            } else {
+              ctx.textBaseline = 'top';
+              ctx.fillText(displayVal, bar.x, bar.y + 4);
+            }
           });
         });
         ctx.restore();
@@ -651,6 +665,7 @@ $(document).ready(function() {
       // 2. Tarif INACBG Chart
       modalTariffChartInstance = new Chart(ctxTariff, {
         type: 'bar',
+        plugins: [chartDatalabelsPlugin],
         data: {
           labels: monthLabels,
           datasets: [{
@@ -692,6 +707,7 @@ $(document).ready(function() {
       // 3. Balance Chart
       modalBalanceChartInstance = new Chart(ctxBalance, {
         type: 'bar',
+        plugins: [chartDatalabelsPlugin],
         data: {
           labels: monthLabels,
           datasets: [{
