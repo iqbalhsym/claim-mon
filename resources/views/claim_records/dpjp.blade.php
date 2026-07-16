@@ -1,6 +1,6 @@
 @extends('layouts.noble_layout')
 
-@section('title', 'Laporan DPJP')
+@section('title', 'Laporan DPJP ' . ($jenisRawat === 'ranap' ? 'Ranap' : 'Rajal'))
 
 @section('css')
 <!-- DataTables Bootstrap 5 CSS -->
@@ -94,10 +94,10 @@
 @section('content')
 <div class="d-flex justify-content-between align-items-center flex-wrap mb-4">
   <div>
-    <h4 class="mb-1 page-title">Laporan DPJP (Dokter Utama)</h4>
+    <h4 class="mb-1 page-title">Laporan DPJP (Dokter Utama) - {{ $jenisRawat === 'ranap' ? 'Ranap' : 'Rajal' }}</h4>
     <nav aria-label="breadcrumb">
       <ol class="breadcrumb mb-0">
-        <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ route('dashboard.' . $jenisRawat) }}">Dashboard</a></li>
         <li class="breadcrumb-item active" aria-current="page">Laporan DPJP</li>
       </ol>
     </nav>
@@ -107,7 +107,7 @@
 {{-- Filter Bulan-Tahun --}}
 <div class="card shadow-sm border-0 mb-4">
   <div class="card-body py-2">
-    <form action="{{ route('claim-records.dpjp') }}" method="GET" class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-0">
+    <form action="{{ route($jenisRawat === 'ranap' ? 'claim-records.dpjp.ranap' : 'claim-records.dpjp.rajal') }}" method="GET" class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-0">
       <div class="d-flex align-items-center gap-2 flex-wrap">
         <span class="small fw-semibold text-muted text-nowrap"><i data-feather="calendar" class="text-primary me-1" style="width:16px;height:16px;"></i>Filter Bulan Pulang:</span>
         <select name="month" class="form-select form-select-sm" style="width: 200px; font-size: 0.8rem;">
@@ -126,9 +126,9 @@
         </select>
         <button type="submit" class="btn btn-primary btn-sm py-1 px-3">Filter</button>
         @if($selectedMonth)
-          <a href="{{ route('claim-records.dpjp') }}" class="btn btn-outline-secondary btn-sm py-1 px-3">Reset</a>
+          <a href="{{ route($jenisRawat === 'ranap' ? 'claim-records.dpjp.ranap' : 'claim-records.dpjp.rajal') }}" class="btn btn-outline-secondary btn-sm py-1 px-3">Reset</a>
         @endif
-        <a href="{{ route('claim-records.dpjp.export', ['month' => $selectedMonth]) }}" class="btn btn-success btn-sm py-1 px-3 text-white ms-1">
+        <a href="{{ route('claim-records.dpjp.export', ['jenis_rawat' => $jenisRawat, 'month' => $selectedMonth]) }}" class="btn btn-success btn-sm py-1 px-3 text-white ms-1">
           <i data-feather="download" style="width:14px;height:14px;" class="me-1"></i>Ekspor Excel
         </a>
       </div>
@@ -260,7 +260,15 @@
                 @endphp
                 <tr>
                   <td><span class="badge bg-light text-dark font-weight-bold">{{ $monthName }}</span></td>
-                  <td><b>{{ $row->dpjp ?: 'Tanpa Nama Dokter' }}</b></td>
+                  <td>
+                    @if($row->dpjp)
+                      <a href="{{ route($jenisRawat === 'ranap' ? 'claim-records.ranap' : 'claim-records.rajal', ['search' => $row->dpjp, 'month' => $row->month_key]) }}" class="text-primary fw-bold text-decoration-none">
+                        {{ $row->dpjp }}
+                      </a>
+                    @else
+                      <span class="text-muted">Tanpa Nama Dokter</span>
+                    @endif
+                  </td>
                   <td class="text-center font-weight-bold" data-order="{{ $row->patient_count }}">{{ $row->patient_count }}</td>
                   <td class="text-end" data-order="{{ $row->total_total_tarif }}">Rp {{ number_format($row->total_total_tarif, 0, ',', '.') }}</td>
                   <td class="text-end" data-order="{{ $row->total_tarif_rs }}">Rp {{ number_format($row->total_tarif_rs, 0, ',', '.') }}</td>
@@ -764,11 +772,13 @@ $(document).ready(function() {
       }
   }
 
+  const jenisRawat = @json($jenisRawat);
+
   // Redirect on KSM row click
   $('.ksm-row').on('click', function() {
       const ksm = $(this).data('ksm');
       const monthKey = $(this).data('month-key') || '';
-      window.location.href = `{{ url('dpjp-report/ksm') }}/${encodeURIComponent(ksm)}?month=${monthKey}`;
+      window.location.href = `{{ url('dpjp-report/ksm') }}/${jenisRawat}/${encodeURIComponent(ksm)}?month=${monthKey}`;
   });
 });
 </script>

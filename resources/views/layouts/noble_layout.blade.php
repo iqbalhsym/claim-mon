@@ -751,7 +751,7 @@
     <!-- Sidebar -->
     <nav class="sidebar">
       <div class="sidebar-header">
-        <a href="{{ route('dashboard') }}" class="logo">
+        <a href="{{ route('dashboard.ranap') }}" class="logo">
           <img src="{{ asset('images/logorsui.png') }}" alt="logo" style="width: 32px; height: auto;" class="me-2">
           <span class="logo-text">Sihitung<span>RSUI</span></span>
         </a>
@@ -765,26 +765,46 @@
         <ul class="nav flex-column">
           <li class="nav-category">Main</li>
           <li class="nav-item">
-            <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+            <a href="{{ route('dashboard.ranap') }}" class="nav-link {{ request()->routeIs('dashboard.ranap') ? 'active' : '' }}">
               <i class="link-icon" data-feather="box"></i>
-              <span class="link-title">Dashboard</span>
+              <span class="link-title">Dashboard Ranap</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ route('dashboard.rajal') }}" class="nav-link {{ request()->routeIs('dashboard.rajal') ? 'active' : '' }}">
+              <i class="link-icon" data-feather="grid"></i>
+              <span class="link-title">Dashboard Rajal</span>
             </a>
           </li>
 
           <li class="nav-category">Aplikasi</li>
           <li class="nav-item">
-            <a href="{{ route('claim-records.index') }}"
-              class="nav-link {{ request()->routeIs('claim-records.index') ? 'active' : '' }}">
+            <a href="{{ route('claim-records.ranap') }}"
+              class="nav-link {{ request()->routeIs('claim-records.ranap') ? 'active' : '' }}">
               <i class="link-icon" data-feather="file-text"></i>
-              <span class="link-title">Data Klaim</span>
+              <span class="link-title">Data Klaim Ranap</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ route('claim-records.rajal') }}"
+              class="nav-link {{ request()->routeIs('claim-records.rajal') ? 'active' : '' }}">
+              <i class="link-icon" data-feather="file-text"></i>
+              <span class="link-title">Data Klaim Rajal</span>
             </a>
           </li>
 
           <li class="nav-item">
-            <a href="{{ route('claim-records.dpjp') }}"
-              class="nav-link {{ request()->routeIs('claim-records.dpjp') ? 'active' : '' }}">
+            <a href="{{ route('claim-records.dpjp.ranap') }}"
+              class="nav-link {{ request()->routeIs('claim-records.dpjp.ranap') || (request()->routeIs('claim-records.dpjp.ksm') && request()->route('jenis_rawat') === 'ranap') ? 'active' : '' }}">
               <i class="link-icon" data-feather="activity"></i>
-              <span class="link-title">Laporan DPJP</span>
+              <span class="link-title">Laporan DPJP Ranap</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ route('claim-records.dpjp.rajal') }}"
+              class="nav-link {{ request()->routeIs('claim-records.dpjp.rajal') || (request()->routeIs('claim-records.dpjp.ksm') && request()->route('jenis_rawat') === 'rajal') ? 'active' : '' }}">
+              <i class="link-icon" data-feather="activity"></i>
+              <span class="link-title">Laporan DPJP Rajal</span>
             </a>
           </li>
 

@@ -90,6 +90,7 @@ class ClaimRecordSeeder extends Seeder
                 'total_tarif' => $totalTarif,
                 'tarif_rs' => $tarifRs,
                 'selisih' => $selisih,
+                'jenis_rawat' => ClaimRecord::parseJenisRawat($inacbg),
                 'raw_data' => json_encode($rawData),
                 'created_at' => $now,
                 'updated_at' => $now,

@@ -1,6 +1,6 @@
 @extends('layouts.noble_layout')
 
-@section('title', 'Detail KSM ' . $ksm)
+@section('title', 'Detail KSM ' . $ksm . ' - ' . ($jenisRawat === 'ranap' ? 'Ranap' : 'Rajal'))
 
 @section('css')
 <!-- DataTables Bootstrap 5 CSS -->
@@ -79,17 +79,17 @@
 @endphp
 <div class="d-flex justify-content-between align-items-center flex-wrap mb-4">
   <div>
-    <h4 class="mb-1 page-title">Laporan KSM / Spesialis: {{ $ksm }}</h4>
+    <h4 class="mb-1 page-title">Laporan KSM / Spesialis: {{ $ksm }} ({{ $jenisRawat === 'ranap' ? 'Ranap' : 'Rajal' }})</h4>
     <nav aria-label="breadcrumb">
       <ol class="breadcrumb mb-0">
-        <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="{{ route('claim-records.dpjp', ['month' => $selectedMonth, 'tab' => 'ksm']) }}">Laporan DPJP</a></li>
+        <li class="breadcrumb-item"><a href="{{ route('dashboard.' . $jenisRawat) }}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{{ route($jenisRawat === 'ranap' ? 'claim-records.dpjp.ranap' : 'claim-records.dpjp.rajal', ['month' => $selectedMonth, 'tab' => 'ksm']) }}">Laporan DPJP</a></li>
         <li class="breadcrumb-item active" aria-current="page">{{ $ksm }}</li>
       </ol>
     </nav>
   </div>
   <div>
-    <a href="{{ route('claim-records.dpjp', ['month' => $selectedMonth, 'tab' => 'ksm']) }}" class="btn btn-outline-secondary btn-sm py-1.5 px-3">
+    <a href="{{ route($jenisRawat === 'ranap' ? 'claim-records.dpjp.ranap' : 'claim-records.dpjp.rajal', ['month' => $selectedMonth, 'tab' => 'ksm']) }}" class="btn btn-outline-secondary btn-sm py-1.5 px-3">
       <i data-feather="arrow-left" style="width:14px;height:14px;" class="me-1"></i> Kembali ke Laporan per KSM (Spesialis)
     </a>
   </div>
@@ -98,7 +98,7 @@
 {{-- Filter Bulan-Tahun --}}
 <div class="card shadow-sm border-0 mb-4">
   <div class="card-body py-2">
-    <form action="{{ route('claim-records.dpjp.ksm', $ksm) }}" method="GET" class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-0">
+    <form action="{{ route('claim-records.dpjp.ksm', ['jenis_rawat' => $jenisRawat, 'ksm' => $ksm]) }}" method="GET" class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-0">
       <div class="d-flex align-items-center gap-2 flex-wrap">
         <span class="small fw-semibold text-muted text-nowrap"><i data-feather="calendar" class="text-primary me-1" style="width:16px;height:16px;"></i>Filter Bulan Pulang:</span>
         <select name="month" class="form-select form-select-sm" style="width: 200px; font-size: 0.8rem;">
@@ -117,7 +117,7 @@
         </select>
         <button type="submit" class="btn btn-primary btn-sm py-1 px-3">Filter</button>
         @if($selectedMonth)
-          <a href="{{ route('claim-records.dpjp.ksm', $ksm) }}" class="btn btn-outline-secondary btn-sm py-1 px-3">Reset</a>
+          <a href="{{ route('claim-records.dpjp.ksm', ['jenis_rawat' => $jenisRawat, 'ksm' => $ksm]) }}" class="btn btn-outline-secondary btn-sm py-1 px-3">Reset</a>
         @endif
       </div>
       @if($selectedMonth)

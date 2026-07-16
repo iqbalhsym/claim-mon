@@ -1,15 +1,15 @@
 @extends('layouts.noble_layout')
 
-@section('title', 'Data Klaim')
+@section('title', 'Data Klaim ' . ($jenisRawat === 'ranap' ? 'Ranap' : 'Rajal'))
 
 @section('content')
 <div class="d-flex justify-content-between align-items-center flex-wrap mb-4">
   <div>
-    <h4 class="mb-1 page-title">Data Klaim</h4>
+    <h4 class="mb-1 page-title">Data Klaim {{ $jenisRawat === 'ranap' ? 'Ranap' : 'Rajal' }}</h4>
     <nav aria-label="breadcrumb">
       <ol class="breadcrumb mb-0">
-        <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
-        <li class="breadcrumb-item active" aria-current="page">Data Klaim</li>
+        <li class="breadcrumb-item"><a href="{{ route('dashboard.' . $jenisRawat) }}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Data Klaim {{ $jenisRawat === 'ranap' ? 'Ranap' : 'Rajal' }}</li>
       </ol>
     </nav>
   </div>
@@ -23,6 +23,7 @@
       <!-- Import Form -->
       <form id="import-form" action="{{ route('claim-records.import') }}" method="POST" enctype="multipart/form-data" class="d-flex align-items-center gap-2 flex-wrap mb-0">
         @csrf
+        <input type="hidden" name="jenis_rawat" value="{{ $jenisRawat }}">
         <span class="small fw-semibold text-muted text-nowrap">
           <i data-feather="upload-cloud" class="text-primary me-1" style="width:16px;height:16px;"></i>Impor Excel:
         </span>
@@ -33,7 +34,7 @@
       </form>
 
       <!-- Delete Data Form -->
-      <form action="{{ route('claim-records.truncate') }}" method="POST" onsubmit="return confirmDelete()" class="d-flex align-items-center gap-2 flex-wrap mb-0">
+      <form action="{{ route('claim-records.truncate', ['jenis_rawat' => $jenisRawat]) }}" method="POST" onsubmit="return confirmDelete()" class="d-flex align-items-center gap-2 flex-wrap mb-0">
         @csrf
         @method('DELETE')
         <span class="small fw-semibold text-muted text-nowrap">
@@ -71,19 +72,40 @@
           <div>
             <h6 class="card-title mb-0">
               Total: {{ number_format($totalFiltered) }} Klaim Terdaftar
-              @if($search || $severity)
+              @if($search || $severity || request()->query('month'))
                 <small class="text-muted">(Terfilter dari {{ number_format($totalRecords) }})</small>
               @endif
             </h6>
           </div>
           
-          <form action="{{ route('claim-records.index') }}" method="GET" class="d-flex align-items-center gap-2 flex-wrap mb-0">
+          <form action="{{ route($jenisRawat === 'ranap' ? 'claim-records.ranap' : 'claim-records.rajal') }}" method="GET" class="d-flex align-items-center gap-2 flex-wrap mb-0">
+            <!-- Month Filter -->
+            <select name="month" class="form-select form-select-sm" style="width: 140px; font-size: 0.8rem;">
+              <option value="">Semua Bulan</option>
+              @foreach($availableMonths as $mKey)
+                @php
+                  try {
+                    $carbon = \Carbon\Carbon::createFromFormat('Y-m', $mKey);
+                    $label = $carbon->translatedFormat('F Y');
+                  } catch (\Exception $e) {
+                    $label = $mKey;
+                  }
+                @endphp
+                <option value="{{ $mKey }}" {{ request()->query('month') === $mKey ? 'selected' : '' }}>{{ $label }}</option>
+              @endforeach
+            </select>
+
             <!-- Severity Filter -->
             <select name="severity" class="form-select form-select-sm" style="width: 140px; font-size: 0.8rem;">
-              <option value="">Semua Severity</option>
-              <option value="I" {{ $severity === 'I' ? 'selected' : '' }}>Severity I (Ringan)</option>
-              <option value="II" {{ $severity === 'II' ? 'selected' : '' }}>Severity II (Sedang)</option>
-              <option value="III" {{ $severity === 'III' ? 'selected' : '' }}>Severity III (Berat)</option>
+              @if($jenisRawat === 'rajal')
+                <option value="">Semua Severity</option>
+                <option value="0" {{ $severity === '0' ? 'selected' : '' }}>Severity 0 (Rajal)</option>
+              @else
+                <option value="">Semua Severity</option>
+                <option value="I" {{ $severity === 'I' ? 'selected' : '' }}>Severity I (Ringan)</option>
+                <option value="II" {{ $severity === 'II' ? 'selected' : '' }}>Severity II (Sedang)</option>
+                <option value="III" {{ $severity === 'III' ? 'selected' : '' }}>Severity III (Berat)</option>
+              @endif
             </select>
 
             <!-- Search input -->
@@ -91,12 +113,12 @@
             
             <button type="submit" class="btn btn-primary btn-sm py-1 px-3">Filter</button>
             
-            @if($search || $severity)
-              <a href="{{ route('claim-records.index') }}" class="btn btn-outline-secondary btn-sm py-1 px-2">Reset</a>
+            @if($search || $severity || request()->query('month'))
+              <a href="{{ route($jenisRawat === 'ranap' ? 'claim-records.ranap' : 'claim-records.rajal') }}" class="btn btn-outline-secondary btn-sm py-1 px-2">Reset</a>
             @endif
 
             <!-- Export button -->
-            <a href="{{ route('claim-records.export', ['search' => $search, 'severity' => $severity]) }}" class="btn btn-outline-success btn-sm py-1 px-3">
+            <a href="{{ route('claim-records.export', ['jenis_rawat' => $jenisRawat, 'search' => $search, 'severity' => $severity, 'month' => request()->query('month')]) }}" class="btn btn-outline-success btn-sm py-1 px-3">
               <i data-feather="download" style="width:13px;height:13px;" class="me-1"></i>Ekspor Excel
             </a>
           </form>

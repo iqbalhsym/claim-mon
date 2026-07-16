@@ -1,6 +1,6 @@
 @extends('layouts.noble_layout')
 
-@section('title', 'Dashboard')
+@section('title', 'Dashboard ' . ($jenisRawat === 'ranap' ? 'Ranap' : 'Rajal'))
 
 @section('css')
 <style>
@@ -90,18 +90,18 @@
 {{-- Header --}}
 <div class="d-flex justify-content-between align-items-center flex-wrap mb-4 fade-in-up">
   <div>
-    <h4 class="mb-1 page-title">Dashboard Analitis</h4>
+    <h4 class="mb-1 page-title">Dashboard Analitis {{ $jenisRawat === 'ranap' ? 'Ranap' : 'Rajal' }}</h4>
     <p class="text-muted mb-0">
       Monitoring Data Klaim &amp; Severity &mdash;
       <span class="fw-semibold">{{ \Carbon\Carbon::now()->translatedFormat('l, d F Y') }}</span>
     </p>
   </div>
   <div class="d-flex gap-2 flex-wrap">
-    <a href="{{ route('claim-records.index') }}" class="btn btn-primary btn-sm">
-      <i data-feather="file-text" style="width:14px;height:14px;" class="me-1"></i> Lihat Data Klaim
+    <a href="{{ route($jenisRawat === 'ranap' ? 'claim-records.ranap' : 'claim-records.rajal') }}" class="btn btn-primary btn-sm">
+      <i data-feather="file-text" style="width:14px;height:14px;" class="me-1"></i> Lihat Data Klaim {{ $jenisRawat === 'ranap' ? 'Ranap' : 'Rajal' }}
     </a>
-    <a href="{{ route('claim-records.dpjp') }}" class="btn btn-outline-primary btn-sm">
-      <i data-feather="activity" style="width:14px;height:14px;" class="me-1"></i> Laporan DPJP
+    <a href="{{ route($jenisRawat === 'ranap' ? 'claim-records.dpjp.ranap' : 'claim-records.dpjp.rajal') }}" class="btn btn-outline-primary btn-sm">
+      <i data-feather="activity" style="width:14px;height:14px;" class="me-1"></i> Laporan DPJP {{ $jenisRawat === 'ranap' ? 'Ranap' : 'Rajal' }}
     </a>
   </div>
 </div>
@@ -109,7 +109,7 @@
 {{-- Filter Tanggal --}}
 <div class="card shadow-sm mb-4 fade-in-up" style="animation-delay: 25ms;">
   <div class="card-body py-2">
-    <form action="{{ route('dashboard') }}" method="GET" class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-0">
+    <form action="{{ route($jenisRawat === 'ranap' ? 'dashboard.ranap' : 'dashboard.rajal') }}" method="GET" class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-0">
       <div class="d-flex align-items-center gap-2 flex-wrap">
         <span class="small fw-semibold text-muted text-nowrap"><i data-feather="calendar" class="text-primary me-1" style="width:16px;height:16px;"></i>Filter Tanggal Pulang:</span>
         <div class="d-flex align-items-center gap-1">
@@ -119,9 +119,9 @@
         </div>
         <button type="submit" class="btn btn-primary btn-sm py-1 px-3">Filter</button>
         @if($startDate || $endDate)
-          <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary btn-sm py-1 px-3">Reset</a>
+          <a href="{{ route($jenisRawat === 'ranap' ? 'dashboard.ranap' : 'dashboard.rajal') }}" class="btn btn-outline-secondary btn-sm py-1 px-3">Reset</a>
         @endif
-        <a href="{{ route('dashboard.export', ['start_date' => $startDate, 'end_date' => $endDate]) }}" class="btn btn-success btn-sm py-1 px-3 text-white ms-1">
+        <a href="{{ route('dashboard.export', ['jenis_rawat' => $jenisRawat, 'start_date' => $startDate, 'end_date' => $endDate]) }}" class="btn btn-success btn-sm py-1 px-3 text-white ms-1">
           <i data-feather="download" style="width:14px;height:14px;" class="me-1"></i>Ekspor Data Diagram (Excel)
         </a>
       </div>
@@ -236,6 +236,24 @@
   </div>
 </div>
 
+@if($jenisRawat === 'rajal')
+  {{-- ===== ROW 2.5: TOP 10 INACBG CASES FOR RAJAL ===== --}}
+  <div class="row g-3 mb-4 fade-in-up" style="animation-delay:325ms">
+    <div class="col-12">
+      <div class="card shadow-sm border-0">
+        <div class="card-body">
+          <div class="section-title">
+            <i data-feather="bar-chart-2"></i> Top 10 Kasus Terbanyak (DESKRIPSI INACBG)
+          </div>
+          <div style="position: relative; height: 380px; width: 100%;">
+            <canvas id="topInacbgChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+@endif
+
 {{-- ===== ROW 3: TOP DOCTORS & RECENT CLAIMS ===== --}}
 <div class="row g-3 mb-4">
   {{-- Top Doctors --}}
@@ -251,7 +269,7 @@
               <tr>
                 <th>Nama Dokter</th>
                 <th class="text-center">Pasien</th>
-                <th class="text-end">Balance Positif/Negatif</th>
+                <th class="text-end">Kontribusi Pendapatan ke RSUI</th>
               </tr>
             </thead>
             <tbody>
@@ -343,6 +361,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const months = @json($months);
   const counts = @json($severityCounts);
   const percents = @json($severityPercentages);
+  const jenisRawat = @json($jenisRawat);
 
   // Custom inline plugin to draw datalabels above bars
   const chartDatalabelsPlugin = {
@@ -361,11 +380,18 @@ document.addEventListener('DOMContentLoaded', function () {
           const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
           ctx.fillStyle = isDark ? '#ffffff' : '#2e3a59';
           ctx.font = 'bold 9px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'bottom';
           
           const text = chart.config.options.isPercent ? val + '%' : val;
-          ctx.fillText(text, bar.x, bar.y - 4);
+          
+          if (chart.config.options.indexAxis === 'y') {
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, bar.x + 5, bar.y);
+          } else {
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(text, bar.x, bar.y - 4);
+          }
         });
       });
       ctx.restore();
@@ -374,31 +400,41 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // 1. Chart Jumlah Kasus
   const ctxCount = document.getElementById('severityCountChart').getContext('2d');
+  
+  const countDatasets = jenisRawat === 'rajal' ? [
+    {
+      label: 'Severity 0 (Rawat Jalan)',
+      data: counts['0'],
+      backgroundColor: '#0F5DA6',
+      borderRadius: 4
+    }
+  ] : [
+    {
+      label: 'Severity I (Ringan)',
+      data: counts['I'],
+      backgroundColor: '#05a34a',
+      borderRadius: 4
+    },
+    {
+      label: 'Severity II (Sedang)',
+      data: counts['II'],
+      backgroundColor: '#fbbc06',
+      borderRadius: 4
+    },
+    {
+      label: 'Severity III (Berat)',
+      data: counts['III'],
+      backgroundColor: '#ff3366',
+      borderRadius: 4
+    }
+  ];
+
   new Chart(ctxCount, {
     type: 'bar',
     plugins: [chartDatalabelsPlugin],
     data: {
       labels: months,
-      datasets: [
-        {
-          label: 'Severity I (Ringan)',
-          data: counts['I'],
-          backgroundColor: '#05a34a',
-          borderRadius: 4
-        },
-        {
-          label: 'Severity II (Sedang)',
-          data: counts['II'],
-          backgroundColor: '#fbbc06',
-          borderRadius: 4
-        },
-        {
-          label: 'Severity III (Berat)',
-          data: counts['III'],
-          backgroundColor: '#ff3366',
-          borderRadius: 4
-        }
-      ]
+      datasets: countDatasets
     },
     options: {
       responsive: true,
@@ -416,7 +452,9 @@ document.addEventListener('DOMContentLoaded', function () {
             color: labelColor,
             callback: function(val, index) {
               const label = this.getLabelForValue(val);
-              const total = (counts['I'][index] || 0) + (counts['II'][index] || 0) + (counts['III'][index] || 0);
+              const total = jenisRawat === 'rajal' 
+                ? (counts['0'][index] || 0)
+                : (counts['I'][index] || 0) + (counts['II'][index] || 0) + (counts['III'][index] || 0);
               return [label, `Total: ${total}`];
             }
           }
@@ -431,31 +469,41 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // 2. Chart Persentase Kasus
   const ctxPercent = document.getElementById('severityPercentChart').getContext('2d');
+
+  const percentDatasets = jenisRawat === 'rajal' ? [
+    {
+      label: 'Severity 0 (%)',
+      data: percents['0'],
+      backgroundColor: '#0F5DA6',
+      borderRadius: 4
+    }
+  ] : [
+    {
+      label: 'Severity I (%)',
+      data: percents['I'],
+      backgroundColor: '#05a34a',
+      borderRadius: 4
+    },
+    {
+      label: 'Severity II (%)',
+      data: percents['II'],
+      backgroundColor: '#fbbc06',
+      borderRadius: 4
+    },
+    {
+      label: 'Severity III (%)',
+      data: percents['III'],
+      backgroundColor: '#ff3366',
+      borderRadius: 4
+    }
+  ];
+
   new Chart(ctxPercent, {
     type: 'bar',
     plugins: [chartDatalabelsPlugin],
     data: {
       labels: months,
-      datasets: [
-        {
-          label: 'Severity I (%)',
-          data: percents['I'],
-          backgroundColor: '#05a34a',
-          borderRadius: 4
-        },
-        {
-          label: 'Severity II (%)',
-          data: percents['II'],
-          backgroundColor: '#fbbc06',
-          borderRadius: 4
-        },
-        {
-          label: 'Severity III (%)',
-          data: percents['III'],
-          backgroundColor: '#ff3366',
-          borderRadius: 4
-        }
-      ]
+      datasets: percentDatasets
     },
     options: {
       isPercent: true,
@@ -490,6 +538,58 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     }
   });
+
+  @if($jenisRawat === 'rajal')
+  // 3. Chart Top 10 INACBG (Multi-month comparison)
+  const topInacbgConfig = @json($topInacbgData);
+  const ctxInacbg = document.getElementById('topInacbgChart').getContext('2d');
+  new Chart(ctxInacbg, {
+    type: 'bar',
+    plugins: [chartDatalabelsPlugin],
+    data: {
+      labels: topInacbgConfig.labels || [],
+      datasets: topInacbgConfig.datasets || []
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: { color: labelColor, font: { family: 'Roboto' } }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return ` ${context.dataset.label} - ${context.label}: ${context.raw} kasus`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: gridColor },
+          ticks: { color: labelColor, stepSize: 1 }
+        },
+        y: {
+          grid: { display: false },
+          ticks: {
+            color: labelColor,
+            font: { family: 'Roboto', size: 10, weight: '500' },
+            callback: function(value, index) {
+              const label = this.getLabelForValue(value);
+              if (label.length > 55) {
+                return label.slice(0, 52) + '...';
+              }
+              return label;
+            }
+          }
+        }
+      }
+    }
+  });
+  @endif
 });
 </script>
 @endsection

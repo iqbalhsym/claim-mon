@@ -11,10 +11,21 @@ use Carbon\Carbon;
 
 class ClaimRecordController extends Controller
 {
-    public function index(Request $request)
+    public function indexRanap(Request $request)
+    {
+        return $this->index($request, 'ranap');
+    }
+
+    public function indexRajal(Request $request)
+    {
+        return $this->index($request, 'rajal');
+    }
+
+    public function index(Request $request, $jenisRawat = 'ranap')
     {
         $search = $request->query('search');
         $severity = $request->query('severity');
+        $month = $request->query('month');
         $sortBy = $request->query('sort_by', 'discharge_date');
         $sortDir = strtolower($request->query('sort_dir', 'desc')) === 'asc' ? 'asc' : 'desc';
 
@@ -29,7 +40,12 @@ class ClaimRecordController extends Controller
             'selisih' => 'selisih',
         ];
 
-        $query = ClaimRecord::query();
+        $driver = DB::connection()->getDriverName();
+        $monthExpr = $driver === 'pgsql'
+            ? "to_char(discharge_date, 'YYYY-MM')"
+            : "strftime('%Y-%m', discharge_date)";
+
+        $query = ClaimRecord::where('jenis_rawat', $jenisRawat);
 
         if ($search) {
             $query->where(function($q) use ($search) {
@@ -44,6 +60,10 @@ class ClaimRecordController extends Controller
             $query->where('severity', $severity);
         }
 
+        if ($month) {
+            $query->whereRaw("$monthExpr = ?", [$month]);
+        }
+
         $totalFiltered = $query->count();
 
         if (array_key_exists($sortBy, $allowedSorts)) {
@@ -53,14 +73,10 @@ class ClaimRecordController extends Controller
         }
 
         $records = $query->paginate(50);
-        $totalRecords = ClaimRecord::count();
-
-        $driver = DB::connection()->getDriverName();
-        $monthExpr = $driver === 'pgsql'
-            ? "to_char(discharge_date, 'YYYY-MM')"
-            : "strftime('%Y-%m', discharge_date)";
+        $totalRecords = ClaimRecord::where('jenis_rawat', $jenisRawat)->count();
 
         $availableMonths = ClaimRecord::selectRaw("$monthExpr as month_key")
+            ->where('jenis_rawat', $jenisRawat)
             ->whereNotNull('discharge_date')
             ->groupBy('month_key')
             ->orderBy('month_key', 'desc')
@@ -68,7 +84,7 @@ class ClaimRecordController extends Controller
             ->filter()
             ->values();
 
-        return view('claim_records.index', compact('records', 'totalRecords', 'totalFiltered', 'search', 'severity', 'availableMonths', 'sortBy', 'sortDir'));
+        return view('claim_records.index', compact('records', 'totalRecords', 'totalFiltered', 'search', 'severity', 'availableMonths', 'sortBy', 'sortDir', 'jenisRawat'));
     }
 
     public function import(Request $request)
@@ -77,6 +93,7 @@ class ClaimRecordController extends Controller
             'file_excel' => 'required|mimes:xlsx,xls,csv'
         ]);
 
+        $jenisRawatSource = $request->input('jenis_rawat', 'ranap');
         $file = $request->file('file_excel');
         $filePath = $file->getRealPath();
 
@@ -89,7 +106,8 @@ class ClaimRecordController extends Controller
             $highestRow = $sheetInfo[0]['totalRows'] ?? 0;
 
             if ($highestRow <= 1) {
-                return redirect()->route('claim-records.index')->with('error', "File excel kosong atau hanya berisi header.");
+                return redirect()->route($jenisRawatSource === 'rajal' ? 'claim-records.rajal' : 'claim-records.ranap')
+                    ->with('error', "File excel kosong atau hanya berisi header.");
             }
 
             $batch = [];
@@ -163,6 +181,7 @@ class ClaimRecordController extends Controller
                         'total_tarif' => $totalTarif,
                         'tarif_rs' => $tarifRs,
                         'selisih' => $selisih,
+                        'jenis_rawat' => ClaimRecord::parseJenisRawat($inacbg),
                         'raw_data' => json_encode($rawData),
                         'created_at' => $now,
                         'updated_at' => $now,
@@ -186,26 +205,31 @@ class ClaimRecordController extends Controller
                 $totalInserted += count($batch);
             }
 
-            return redirect()->route('claim-records.index')->with('success', "Berhasil mengimpor {$totalInserted} data klaim.");
+            return redirect()->route($jenisRawatSource === 'rajal' ? 'claim-records.rajal' : 'claim-records.ranap')
+                ->with('success', "Berhasil mengimpor {$totalInserted} data klaim.");
         } catch (\Exception $e) {
-            return redirect()->route('claim-records.index')->with('error', "Gagal mengimpor file: " . $e->getMessage());
+            return redirect()->route($jenisRawatSource === 'rajal' ? 'claim-records.rajal' : 'claim-records.ranap')
+                ->with('error', "Gagal mengimpor file: " . $e->getMessage());
         }
     }
 
-    public function truncate(Request $request)
+    public function truncate(Request $request, $jenisRawat)
     {
         $deleteMonth = $request->input('delete_month', 'all');
 
         if ($deleteMonth === 'all') {
-            ClaimRecord::truncate();
-            return redirect()->route('claim-records.index')->with('success', 'Semua data klaim berhasil dihapus.');
+            ClaimRecord::where('jenis_rawat', $jenisRawat)->delete();
+            return redirect()->route($jenisRawat === 'rajal' ? 'claim-records.rajal' : 'claim-records.ranap')
+                ->with('success', 'Semua data klaim berhasil dihapus.');
         } else {
             $driver = DB::connection()->getDriverName();
             $monthExpr = $driver === 'pgsql'
                 ? "to_char(discharge_date, 'YYYY-MM')"
                 : "strftime('%Y-%m', discharge_date)";
 
-            $deletedCount = ClaimRecord::whereRaw("$monthExpr = ?", [$deleteMonth])->delete();
+            $deletedCount = ClaimRecord::where('jenis_rawat', $jenisRawat)
+                ->whereRaw("$monthExpr = ?", [$deleteMonth])
+                ->delete();
 
             try {
                 $carbon = Carbon::createFromFormat('Y-m', $deleteMonth);
@@ -214,11 +238,22 @@ class ClaimRecordController extends Controller
                 $monthLabel = $deleteMonth;
             }
 
-            return redirect()->route('claim-records.index')->with('success', "Berhasil menghapus {$deletedCount} data klaim untuk bulan {$monthLabel}.");
+            return redirect()->route($jenisRawat === 'rajal' ? 'claim-records.rajal' : 'claim-records.ranap')
+                ->with('success', "Berhasil menghapus {$deletedCount} data klaim untuk bulan {$monthLabel}.");
         }
     }
 
-    public function dpjpReport(Request $request)
+    public function dpjpReportRanap(Request $request)
+    {
+        return $this->dpjpReport($request, 'ranap');
+    }
+
+    public function dpjpReportRajal(Request $request)
+    {
+        return $this->dpjpReport($request, 'rajal');
+    }
+
+    public function dpjpReport(Request $request, $jenisRawat = 'ranap')
     {
         $selectedMonth = $request->query('month');
 
@@ -229,6 +264,7 @@ class ClaimRecordController extends Controller
 
         // Get available months for dropdown filter
         $availableMonths = ClaimRecord::selectRaw("$monthExpr as month_key")
+            ->where('jenis_rawat', $jenisRawat)
             ->whereNotNull('discharge_date')
             ->groupBy('month_key')
             ->orderBy('month_key', 'desc')
@@ -243,91 +279,58 @@ class ClaimRecordController extends Controller
             sum(total_tarif) as total_total_tarif,
             sum(tarif_rs) as total_tarif_rs,
             sum(total_tarif - tarif_rs) as total_selisih
-        ");
+        ")->where('jenis_rawat', $jenisRawat);
 
         if ($selectedMonth) {
             $query->whereRaw("$monthExpr = ?", [$selectedMonth]);
         }
 
-        $stats = $query->groupBy('month_key', 'dpjp')
+        $stats = $query->whereNotNull('dpjp')
+            ->where('dpjp', '!=', '')
+            ->groupBy('month_key', 'dpjp')
             ->orderBy('month_key', 'desc')
-            ->orderBy('dpjp', 'asc')
+            ->orderBy('patient_count', 'desc')
             ->get();
 
-        // Query statistik per KSM
-        $queryKsm = ClaimRecord::selectRaw("
+        // Separate grouping by KSM for KSM list tab
+        $ksmQuery = ClaimRecord::selectRaw("
             $monthExpr as month_key,
             ksm,
             count(*) as patient_count,
             sum(total_tarif) as total_total_tarif,
             sum(tarif_rs) as total_tarif_rs,
             sum(total_tarif - tarif_rs) as total_selisih
-        ");
+        ")->where('jenis_rawat', $jenisRawat);
 
         if ($selectedMonth) {
-            $queryKsm->whereRaw("$monthExpr = ?", [$selectedMonth]);
+            $ksmQuery->whereRaw("$monthExpr = ?", [$selectedMonth]);
         }
 
-        $ksmStats = $queryKsm->groupBy('month_key', 'ksm')
+        $ksmStats = $ksmQuery->groupBy('month_key', 'ksm')
             ->orderBy('month_key', 'desc')
-            ->orderBy('ksm', 'asc')
+            ->orderBy('patient_count', 'desc')
             ->get();
 
-        // Calculate grand totals
+        // Calculate Grand Totals
         $grandTotalPatients = $stats->sum('patient_count');
         $grandTotalTarif = $stats->sum('total_total_tarif');
         $grandTotalRs = $stats->sum('total_tarif_rs');
         $grandTotalSelisih = $stats->sum('total_selisih');
 
-        // Query detail dokter per KSM untuk modal detail
-        $queryKsmDetails = ClaimRecord::selectRaw("
-            $monthExpr as month_key,
-            ksm,
-            dpjp,
-            count(*) as patient_count,
-            sum(total_tarif) as total_total_tarif,
-            sum(tarif_rs) as total_tarif_rs,
-            sum(total_tarif - tarif_rs) as total_selisih
-        ");
-
-        if ($selectedMonth) {
-            $queryKsmDetails->whereRaw("$monthExpr = ?", [$selectedMonth]);
-        }
-
-        $ksmDetails = $queryKsmDetails->groupBy('month_key', 'ksm', 'dpjp')
-            ->orderBy('month_key', 'desc')
-            ->orderBy('ksm', 'asc')
-            ->orderBy('dpjp', 'asc')
-            ->get();
-
-        $ksmDetailsGrouped = [];
-        foreach ($ksmDetails as $detail) {
-            $mKey = $detail->month_key;
-            $kKey = $detail->ksm ?: 'Tidak Terdaftar/Lain-lain';
-            $ksmDetailsGrouped[$mKey][$kKey][] = [
-                'dpjp' => $detail->dpjp ?: 'Tanpa Nama Dokter',
-                'patient_count' => (int)$detail->patient_count,
-                'total_tarif' => (float)$detail->total_total_tarif,
-                'tarif_rs' => (float)$detail->total_tarif_rs,
-                'selisih' => (float)$detail->total_selisih,
-            ];
-        }
-        $ksmDetailsJson = json_encode($ksmDetailsGrouped);
-
         return view('claim_records.dpjp', compact(
             'stats',
             'ksmStats',
+            'availableMonths',
+            'selectedMonth',
             'grandTotalPatients',
             'grandTotalTarif',
             'grandTotalRs',
             'grandTotalSelisih',
-            'availableMonths',
-            'selectedMonth',
-            'ksmDetailsJson'
+            'jenisRawat'
         ));
     }
 
-    public function ksmReport(Request $request, $ksm)
+    public function ksmReport(Request $request, $jenisRawat, $ksm)
     {
         $selectedMonth = $request->query('month');
 
@@ -338,6 +341,7 @@ class ClaimRecordController extends Controller
 
         // Get available months for dropdown filter
         $availableMonths = ClaimRecord::selectRaw("$monthExpr as month_key")
+            ->where('jenis_rawat', $jenisRawat)
             ->whereNotNull('discharge_date')
             ->groupBy('month_key')
             ->orderBy('month_key', 'desc')
@@ -354,6 +358,7 @@ class ClaimRecordController extends Controller
             sum(tarif_rs) as total_tarif_rs,
             sum(total_tarif - tarif_rs) as total_selisih
         ")
+        ->where('jenis_rawat', $jenisRawat)
         ->where(function($q) use ($ksm) {
             if ($ksm === 'Tidak Terdaftar/Lain-lain' || $ksm === 'Lain-lain') {
                 $q->whereNull('ksm')->orWhere('ksm', '')->orWhere('ksm', 'Lain-lain');
@@ -392,11 +397,12 @@ class ClaimRecordController extends Controller
             'top5Patients',
             'top5Finance',
             'availableMonths',
-            'selectedMonth'
+            'selectedMonth',
+            'jenisRawat'
         ));
     }
 
-    public function exportDpjp(Request $request)
+    public function exportDpjp(Request $request, $jenisRawat)
     {
         $selectedMonth = $request->query('month');
 
@@ -412,7 +418,7 @@ class ClaimRecordController extends Controller
             sum(total_tarif) as total_total_tarif,
             sum(tarif_rs) as total_tarif_rs,
             sum(total_tarif - tarif_rs) as total_selisih
-        ");
+        ")->where('jenis_rawat', $jenisRawat);
 
         if ($selectedMonth) {
             $query->whereRaw("$monthExpr = ?", [$selectedMonth]);
@@ -427,17 +433,19 @@ class ClaimRecordController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Laporan DPJP');
 
-        // Title Block
-        $sheet->setCellValue('A1', 'LAPORAN KINERJA DPJP (DOKTER UTAMA)');
-        $sheet->getStyle('A1')->getFont()->setSize(14)->setBold(true);
+        $rawatLabel = $jenisRawat === 'ranap' ? 'RAWAT INAP (RANAP)' : 'RAWAT JALAN (RAJAL)';
 
-        $periodeText = 'Semua Bulan/Tahun';
+        // Title Block
+        $sheet->setCellValue('A1', 'LAPORAN REKAPITULASI KLAIM PER DPJP - ' . $rawatLabel);
+        $sheet->getStyle('A1')->getFont()->setSize(13)->setBold(true);
+
+        $periodeText = 'Semua Periode';
         if ($selectedMonth) {
             try {
                 $carbon = Carbon::createFromFormat('Y-m', $selectedMonth);
-                $periodeText = 'Bulan: ' . $carbon->translatedFormat('F Y');
+                $periodeText = 'Bulan Pulang: ' . $carbon->translatedFormat('F Y');
             } catch (\Exception $e) {
-                $periodeText = 'Bulan: ' . $selectedMonth;
+                $periodeText = 'Bulan Pulang: ' . $selectedMonth;
             }
         }
         $sheet->setCellValue('A2', $periodeText);
@@ -446,12 +454,12 @@ class ClaimRecordController extends Controller
         // Headers
         $headers = [
             'A4' => 'No',
-            'B4' => 'Bulan',
-            'C4' => 'Nama Dokter (DPJP)',
+            'B4' => 'Bulan Pulang',
+            'C4' => 'Nama Dokter DPJP',
             'D4' => 'Jumlah Pasien',
-            'E4' => 'Total Tarif INACBG',
-            'F4' => 'Tarif RS (Rp)',
-            'G4' => 'Balance Positif/Negatif'
+            'E4' => 'Total Tarif INACBG (Rp)',
+            'F4' => 'Total Tarif RS (Rp)',
+            'G4' => 'Selisih (Rp)'
         ];
 
         foreach ($headers as $cell => $text) {
@@ -463,22 +471,21 @@ class ClaimRecordController extends Controller
 
         $rowIdx = 5;
         $no = 1;
-
-        $grandTotalPatients = 0;
-        $grandTotalTarif = 0;
-        $grandTotalRs = 0;
-        $grandTotalSelisih = 0;
+        $totalPatients = 0;
+        $totalTarif = 0;
+        $totalRs = 0;
+        $totalSelisih = 0;
 
         foreach ($stats as $row) {
             try {
-                $carbon = Carbon::createFromFormat('Y-m', $row->month_key);
-                $monthName = $carbon->translatedFormat('F Y');
+                $carbonDate = Carbon::createFromFormat('Y-m', $row->month_key);
+                $monthLabel = $carbonDate->translatedFormat('F Y');
             } catch (\Exception $e) {
-                $monthName = $row->month_key;
+                $monthLabel = $row->month_key;
             }
 
             $sheet->setCellValue('A' . $rowIdx, $no++);
-            $sheet->setCellValue('B' . $rowIdx, $monthName);
+            $sheet->setCellValue('B' . $rowIdx, $monthLabel);
             $sheet->setCellValue('C' . $rowIdx, $row->dpjp ?: 'Tanpa Nama Dokter');
             $sheet->setCellValue('D' . $rowIdx, $row->patient_count);
             $sheet->setCellValue('E' . $rowIdx, $row->total_total_tarif);
@@ -487,157 +494,55 @@ class ClaimRecordController extends Controller
 
             // Alignments & formats
             $sheet->getStyle('A' . $rowIdx)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+            $sheet->getStyle('B' . $rowIdx)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
             $sheet->getStyle('D' . $rowIdx)->getNumberFormat()->setFormatCode('#,##0');
             $sheet->getStyle('E' . $rowIdx)->getNumberFormat()->setFormatCode('#,##0');
             $sheet->getStyle('F' . $rowIdx)->getNumberFormat()->setFormatCode('#,##0');
             $sheet->getStyle('G' . $rowIdx)->getNumberFormat()->setFormatCode('#,##0');
 
-            $grandTotalPatients += $row->patient_count;
-            $grandTotalTarif += $row->total_total_tarif;
-            $grandTotalRs += $row->total_tarif_rs;
-            $grandTotalSelisih += $row->total_selisih;
+            // Selisih color-coding
+            if ($row->total_selisih < 0) {
+                $sheet->getStyle('G' . $rowIdx)->getFont()->getColor()->setARGB('FF3366');
+            } else {
+                $sheet->getStyle('G' . $rowIdx)->getFont()->getColor()->setARGB('05A34A');
+            }
+
+            $totalPatients += $row->patient_count;
+            $totalTarif += $row->total_total_tarif;
+            $totalRs += $row->total_tarif_rs;
+            $totalSelisih += $row->total_selisih;
 
             $rowIdx++;
         }
 
         // Grand Total row
-        $sheet->setCellValue('A' . $rowIdx, '');
-        $sheet->setCellValue('B' . $rowIdx, '');
-        $sheet->setCellValue('C' . $rowIdx, 'Grand Total');
-        $sheet->setCellValue('D' . $rowIdx, $grandTotalPatients);
-        $sheet->setCellValue('E' . $rowIdx, $grandTotalTarif);
-        $sheet->setCellValue('F' . $rowIdx, $grandTotalRs);
-        $sheet->setCellValue('G' . $rowIdx, $grandTotalSelisih);
+        $sheet->setCellValue('B' . $rowIdx, 'Grand Total');
+        $sheet->setCellValue('D' . $rowIdx, $totalPatients);
+        $sheet->setCellValue('E' . $rowIdx, $totalTarif);
+        $sheet->setCellValue('F' . $rowIdx, $totalRs);
+        $sheet->setCellValue('G' . $rowIdx, $totalSelisih);
 
-        $sheet->getStyle('C' . $rowIdx . ':G' . $rowIdx)->getFont()->setBold(true);
+        $sheet->getStyle('B' . $rowIdx . ':G' . $rowIdx)->getFont()->setBold(true);
         $sheet->getStyle('D' . $rowIdx)->getNumberFormat()->setFormatCode('#,##0');
         $sheet->getStyle('E' . $rowIdx)->getNumberFormat()->setFormatCode('#,##0');
         $sheet->getStyle('F' . $rowIdx)->getNumberFormat()->setFormatCode('#,##0');
         $sheet->getStyle('G' . $rowIdx)->getNumberFormat()->setFormatCode('#,##0');
 
-        // Auto column width
+        // Color coding for grand total selisih
+        if ($totalSelisih < 0) {
+            $sheet->getStyle('G' . $rowIdx)->getFont()->getColor()->setARGB('FF3366');
+        } else {
+            $sheet->getStyle('G' . $rowIdx)->getFont()->getColor()->setARGB('05A34A');
+        }
+
+        // Auto width
         foreach (range('A', 'G') as $col) {
             $sheet->getColumnDimension($col)->setAutoSize(true);
         }
 
-        // ================= SHEET 2: LAPORAN KSM =================
-        $sheetKsm = $spreadsheet->createSheet();
-        $sheetKsm->setTitle('Laporan KSM');
-
-        // Query KSM stats untuk diekspor
-        $queryKsm = ClaimRecord::selectRaw("
-            $monthExpr as month_key,
-            ksm,
-            count(*) as patient_count,
-            sum(total_tarif) as total_total_tarif,
-            sum(tarif_rs) as total_tarif_rs,
-            sum(total_tarif - tarif_rs) as total_selisih
-        ");
-
-        if ($selectedMonth) {
-            $queryKsm->whereRaw("$monthExpr = ?", [$selectedMonth]);
-        }
-
-        $ksmStats = $queryKsm->groupBy('month_key', 'ksm')
-            ->orderBy('month_key', 'desc')
-            ->orderBy('ksm', 'asc')
-            ->get();
-
-        // Title Block
-        $sheetKsm->setCellValue('A1', 'LAPORAN KINERJA PER KSM (SPESIALIS)');
-        $sheetKsm->getStyle('A1')->getFont()->setSize(14)->setBold(true);
-        $sheetKsm->setCellValue('A2', $periodeText);
-        $sheetKsm->getStyle('A2')->getFont()->setItalic(true);
-
-        // Headers
-        $ksmHeaders = [
-            'A4' => 'No',
-            'B4' => 'Bulan',
-            'C4' => 'KSM / Spesialis',
-            'D4' => 'Jumlah Pasien',
-            'E4' => 'Total Tarif INACBG',
-            'F4' => 'Tarif RS (Rp)',
-            'G4' => 'Balance Positif/Negatif'
-        ];
-
-        foreach ($ksmHeaders as $cell => $text) {
-            $sheetKsm->setCellValue($cell, $text);
-            $sheetKsm->getStyle($cell)->getFont()->setBold(true);
-            $sheetKsm->getStyle($cell)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
-            $sheetKsm->getStyle($cell)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setARGB('EAEAEA');
-        }
-
-        $rowIdxKsm = 5;
-        $noKsm = 1;
-
-        $grandTotalPatientsKsm = 0;
-        $grandTotalTarifKsm = 0;
-        $grandTotalRsKsm = 0;
-        $grandTotalSelisihKsm = 0;
-
-        foreach ($ksmStats as $row) {
-            try {
-                $carbon = Carbon::createFromFormat('Y-m', $row->month_key);
-                $monthName = $carbon->translatedFormat('F Y');
-            } catch (\Exception $e) {
-                $monthName = $row->month_key;
-            }
-
-            $sheetKsm->setCellValue('A' . $rowIdxKsm, $noKsm++);
-            $sheetKsm->setCellValue('B' . $rowIdxKsm, $monthName);
-            $sheetKsm->setCellValue('C' . $rowIdxKsm, $row->ksm ?: 'Tidak Terdaftar/Lain-lain');
-            $sheetKsm->setCellValue('D' . $rowIdxKsm, $row->patient_count);
-            $sheetKsm->setCellValue('E' . $rowIdxKsm, $row->total_total_tarif);
-            $sheetKsm->setCellValue('F' . $rowIdxKsm, $row->total_tarif_rs);
-            $sheetKsm->setCellValue('G' . $rowIdxKsm, $row->total_selisih);
-
-            // Alignments & formats
-            $sheetKsm->getStyle('A' . $rowIdxKsm)->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
-            $sheetKsm->getStyle('D' . $rowIdxKsm)->getNumberFormat()->setFormatCode('#,##0');
-            $sheetKsm->getStyle('E' . $rowIdxKsm)->getNumberFormat()->setFormatCode('#,##0');
-            $sheetKsm->getStyle('F' . $rowIdxKsm)->getNumberFormat()->setFormatCode('#,##0');
-            $sheetKsm->getStyle('G' . $rowIdxKsm)->getNumberFormat()->setFormatCode('#,##0');
-
-            $grandTotalPatientsKsm += $row->patient_count;
-            $grandTotalTarifKsm += $row->total_total_tarif;
-            $grandTotalRsKsm += $row->total_tarif_rs;
-            $grandTotalSelisihKsm += $row->total_selisih;
-
-            $rowIdxKsm++;
-        }
-
-        // Grand Total row
-        $sheetKsm->setCellValue('A' . $rowIdxKsm, '');
-        $sheetKsm->setCellValue('B' . $rowIdxKsm, '');
-        $sheetKsm->setCellValue('C' . $rowIdxKsm, 'Grand Total');
-        $sheetKsm->setCellValue('D' . $rowIdxKsm, $grandTotalPatientsKsm);
-        $sheetKsm->setCellValue('E' . $rowIdxKsm, $grandTotalTarifKsm);
-        $sheetKsm->setCellValue('F' . $rowIdxKsm, $grandTotalRsKsm);
-        $sheetKsm->setCellValue('G' . $rowIdxKsm, $grandTotalSelisihKsm);
-
-        $sheetKsm->getStyle('C' . $rowIdxKsm . ':G' . $rowIdxKsm)->getFont()->setBold(true);
-        $sheetKsm->getStyle('D' . $rowIdxKsm)->getNumberFormat()->setFormatCode('#,##0');
-        $sheetKsm->getStyle('E' . $rowIdxKsm)->getNumberFormat()->setFormatCode('#,##0');
-        $sheetKsm->getStyle('F' . $rowIdxKsm)->getNumberFormat()->setFormatCode('#,##0');
-        $sheetKsm->getStyle('G' . $rowIdxKsm)->getNumberFormat()->setFormatCode('#,##0');
-
-        // Auto column width
-        foreach (range('A', 'G') as $col) {
-            $sheetKsm->getColumnDimension($col)->setAutoSize(true);
-        }
-
         $writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Xlsx');
-        
-        $monthStr = 'semua_bulan';
-        if ($selectedMonth) {
-            try {
-                $carbon = Carbon::createFromFormat('Y-m', $selectedMonth);
-                $monthStr = strtolower($carbon->translatedFormat('F_Y'));
-            } catch (\Exception $e) {
-                $monthStr = strtolower(str_replace('-', '_', $selectedMonth));
-            }
-        }
-        $fileName = 'laporan_dpjp_' . $monthStr . '.xlsx';
+        $monthStr = $selectedMonth ? '_' . $selectedMonth : '_semua_periode';
+        $fileName = 'rekap_dpjp_' . $jenisRawat . $monthStr . '.xlsx';
 
         return response()->stream(
             function() use ($writer) {
@@ -652,12 +557,13 @@ class ClaimRecordController extends Controller
         );
     }
 
-    public function export(Request $request)
+    public function export(Request $request, $jenisRawat)
     {
         $search = $request->query('search');
         $severity = $request->query('severity');
+        $month = $request->query('month');
 
-        $query = ClaimRecord::query();
+        $query = ClaimRecord::where('jenis_rawat', $jenisRawat);
 
         if ($search) {
             $query->where(function($q) use ($search) {
@@ -670,6 +576,14 @@ class ClaimRecordController extends Controller
 
         if ($severity) {
             $query->where('severity', $severity);
+        }
+
+        if ($month) {
+            $driver = DB::connection()->getDriverName();
+            $monthExpr = $driver === 'pgsql'
+                ? "to_char(discharge_date, 'YYYY-MM')"
+                : "strftime('%Y-%m', discharge_date)";
+            $query->whereRaw("$monthExpr = ?", [$month]);
         }
 
         // Optimize memory: Select only required columns and use lazy loading
@@ -735,7 +649,7 @@ class ClaimRecordController extends Controller
         $writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Xlsx');
 
         $severityStr = $severity ? '_severity_' . strtolower($severity) : '';
-        $fileName = 'data_klaim_export' . $severityStr . '_' . date('Ymd_His') . '.xlsx';
+        $fileName = 'data_klaim_export_' . $jenisRawat . $severityStr . '_' . date('Ymd_His') . '.xlsx';
 
         return response()->stream(
             function() use ($writer) {

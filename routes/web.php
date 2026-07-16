@@ -22,18 +22,22 @@ Route::get('/refresh-captcha', [AuthController::class, 'refreshCaptcha'])->name(
 Route::middleware(['auth'])->group(function () {
 
     // --- DASHBOARD ---
-    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('dashboard/export', [DashboardController::class, 'exportExcel'])->name('dashboard.export');
+    Route::redirect('/', '/dashboard/ranap')->name('dashboard');
+    Route::get('dashboard/ranap', [DashboardController::class, 'indexRanap'])->name('dashboard.ranap');
+    Route::get('dashboard/rajal', [DashboardController::class, 'indexRajal'])->name('dashboard.rajal');
+    Route::get('dashboard/export/{jenis_rawat}', [DashboardController::class, 'exportExcel'])->name('dashboard.export');
 
     // --- DATA KLAIM ---
-    Route::get('claim-records', [ClaimRecordController::class, 'index'])->name('claim-records.index');
-    Route::get('claim-records/export', [ClaimRecordController::class, 'export'])->name('claim-records.export');
+    Route::get('claim-records/ranap', [ClaimRecordController::class, 'indexRanap'])->name('claim-records.ranap');
+    Route::get('claim-records/rajal', [ClaimRecordController::class, 'indexRajal'])->name('claim-records.rajal');
+    Route::get('claim-records/export/{jenis_rawat}', [ClaimRecordController::class, 'export'])->name('claim-records.export');
     Route::post('claim-records/import', [ClaimRecordController::class, 'import'])->name('claim-records.import');
-    Route::delete('claim-records/truncate', [ClaimRecordController::class, 'truncate'])->name('claim-records.truncate');
+    Route::delete('claim-records/truncate/{jenis_rawat}', [ClaimRecordController::class, 'truncate'])->name('claim-records.truncate');
     Route::get('claim-records/{id}', [ClaimRecordController::class, 'show'])->name('claim-records.show');
-    Route::get('dpjp-report', [ClaimRecordController::class, 'dpjpReport'])->name('claim-records.dpjp');
-    Route::get('dpjp-report/export', [ClaimRecordController::class, 'exportDpjp'])->name('claim-records.dpjp.export');
-    Route::get('dpjp-report/ksm/{ksm}', [ClaimRecordController::class, 'ksmReport'])->name('claim-records.dpjp.ksm')->where('ksm', '.*');
+    Route::get('dpjp-report/ranap', [ClaimRecordController::class, 'dpjpReportRanap'])->name('claim-records.dpjp.ranap');
+    Route::get('dpjp-report/rajal', [ClaimRecordController::class, 'dpjpReportRajal'])->name('claim-records.dpjp.rajal');
+    Route::get('dpjp-report/export/{jenis_rawat}', [ClaimRecordController::class, 'exportDpjp'])->name('claim-records.dpjp.export');
+    Route::get('dpjp-report/ksm/{jenis_rawat}/{ksm}', [ClaimRecordController::class, 'ksmReport'])->name('claim-records.dpjp.ksm')->where('ksm', '.*');
 
     // --- MANAJEMEN AKUN (Hanya Administrator) ---
     Route::middleware(['role:administrator'])->prefix('users')->name('users.')->group(function () {
