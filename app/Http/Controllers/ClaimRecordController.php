@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ClaimRecord;
 use Illuminate\Http\Request;
+use App\Services\ChunkReadFilter;
 use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Carbon\Carbon;
@@ -82,79 +83,102 @@ class ClaimRecordController extends Controller
         try {
             $reader = IOFactory::createReaderForFile($filePath);
             $reader->setReadDataOnly(true);
-            $spreadsheet = $reader->load($filePath);
-            $sheet = $spreadsheet->getActiveSheet();
 
-            $highestRow = $sheet->getHighestRow();
+            // Get total worksheet rows without reading the entire dataset
+            $sheetInfo = $reader->listWorksheetInfo($filePath);
+            $highestRow = $sheetInfo[0]['totalRows'] ?? 0;
+
+            if ($highestRow <= 1) {
+                return redirect()->route('claim-records.index')->with('error', "File excel kosong atau hanya berisi header.");
+            }
 
             $batch = [];
             $batchSize = 250;
+            $chunkSize = 2000;
             $totalInserted = 0;
             $now = now()->toDateTimeString();
 
-            $highestCol = $sheet->getHighestColumn();
-            $highestColIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestCol);
-            $headers = [];
-            for ($col = 1; $col <= $highestColIndex; $col++) {
-                $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
-                $headers[$colLetter] = trim($sheet->getCell($colLetter . '1')->getValue() ?? '');
-            }
+            // Populate static in-memory lookup map in Doctor model to prevent N+1 query overhead
+            \App\Models\Doctor::resolveKsm('');
 
-            for ($row = 2; $row <= $highestRow; $row++) {
-                $noRm = trim($sheet->getCell('AU' . $row)->getValue() ?? '');
-                $namaPasien = trim($sheet->getCell('AT' . $row)->getValue() ?? '');
+            for ($startRow = 2; $startRow <= $highestRow; $startRow += $chunkSize) {
+                $filter = new ChunkReadFilter($startRow, $chunkSize);
+                $reader->setReadFilter($filter);
 
-                if (empty($noRm) && empty($namaPasien)) {
-                    continue;
-                }
+                $spreadsheet = $reader->load($filePath);
+                $sheet = $spreadsheet->getActiveSheet();
 
-                $rawAdmission = $sheet->getCell('F' . $row)->getValue();
-                $rawDischarge = $sheet->getCell('G' . $row)->getValue();
+                $endRow = min($startRow + $chunkSize - 1, $highestRow);
 
-                $admissionDate = $this->parseExcelDate($rawAdmission);
-                $dischargeDate = $this->parseExcelDate($rawDischarge);
-
-                $inacbg = trim($sheet->getCell('T' . $row)->getValue() ?? '');
-                $severity = ClaimRecord::parseSeverity($inacbg);
-                $dpjp = trim($sheet->getCell('AX' . $row)->getValue() ?? '');
-                $ksm = \App\Models\Doctor::resolveKsm($dpjp);
-
-                $totalTarif = (float)($sheet->getCell('AM' . $row)->getValue() ?? 0);
-                $tarifRs = (float)($sheet->getCell('AN' . $row)->getValue() ?? 0);
-                $selisih = $totalTarif - $tarifRs;
-
-                // Build raw data
-                $rawData = [];
+                $highestCol = $sheet->getHighestColumn();
+                $highestColIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestCol);
+                $headers = [];
                 for ($col = 1; $col <= $highestColIndex; $col++) {
                     $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
-                    $headerName = $headers[$colLetter] ?? $colLetter;
-                    if (!empty($headerName)) {
-                        $rawData[$headerName] = $sheet->getCell($colLetter . $row)->getValue();
+                    $headers[$colLetter] = trim($sheet->getCell($colLetter . '1')->getValue() ?? '');
+                }
+
+                for ($row = $startRow; $row <= $endRow; $row++) {
+                    $noRm = trim($sheet->getCell('AU' . $row)->getValue() ?? '');
+                    $namaPasien = trim($sheet->getCell('AT' . $row)->getValue() ?? '');
+
+                    if (empty($noRm) && empty($namaPasien)) {
+                        continue;
+                    }
+
+                    $rawAdmission = $sheet->getCell('F' . $row)->getValue();
+                    $rawDischarge = $sheet->getCell('G' . $row)->getValue();
+
+                    $admissionDate = $this->parseExcelDate($rawAdmission);
+                    $dischargeDate = $this->parseExcelDate($rawDischarge);
+
+                    $inacbg = trim($sheet->getCell('T' . $row)->getValue() ?? '');
+                    $severity = ClaimRecord::parseSeverity($inacbg);
+                    $dpjp = trim($sheet->getCell('AX' . $row)->getValue() ?? '');
+                    $ksm = \App\Models\Doctor::resolveKsm($dpjp);
+
+                    $totalTarif = (float)($sheet->getCell('AM' . $row)->getValue() ?? 0);
+                    $tarifRs = (float)($sheet->getCell('AN' . $row)->getValue() ?? 0);
+                    $selisih = $totalTarif - $tarifRs;
+
+                    // Build raw data
+                    $rawData = [];
+                    for ($col = 1; $col <= $highestColIndex; $col++) {
+                        $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+                        $headerName = $headers[$colLetter] ?? $colLetter;
+                        if (!empty($headerName)) {
+                            $rawData[$headerName] = $sheet->getCell($colLetter . $row)->getValue();
+                        }
+                    }
+
+                    $batch[] = [
+                        'no_rm' => $noRm,
+                        'nama_pasien' => $namaPasien,
+                        'admission_date' => $admissionDate?->toDateString(),
+                        'discharge_date' => $dischargeDate?->toDateString(),
+                        'inacbg' => $inacbg,
+                        'severity' => $severity,
+                        'dpjp' => $dpjp,
+                        'ksm' => $ksm,
+                        'total_tarif' => $totalTarif,
+                        'tarif_rs' => $tarifRs,
+                        'selisih' => $selisih,
+                        'raw_data' => json_encode($rawData),
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
+
+                    if (count($batch) >= $batchSize) {
+                        ClaimRecord::insert($batch);
+                        $totalInserted += count($batch);
+                        $batch = [];
                     }
                 }
 
-                $batch[] = [
-                    'no_rm' => $noRm,
-                    'nama_pasien' => $namaPasien,
-                    'admission_date' => $admissionDate?->toDateString(),
-                    'discharge_date' => $dischargeDate?->toDateString(),
-                    'inacbg' => $inacbg,
-                    'severity' => $severity,
-                    'dpjp' => $dpjp,
-                    'ksm' => $ksm,
-                    'total_tarif' => $totalTarif,
-                    'tarif_rs' => $tarifRs,
-                    'selisih' => $selisih,
-                    'raw_data' => json_encode($rawData),
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ];
-
-                if (count($batch) >= $batchSize) {
-                    ClaimRecord::insert($batch);
-                    $totalInserted += count($batch);
-                    $batch = [];
-                }
+                // Free worksheet memory
+                $spreadsheet->disconnectWorksheets();
+                unset($spreadsheet, $sheet);
+                gc_collect_cycles();
             }
 
             if (count($batch) > 0) {
@@ -648,7 +672,18 @@ class ClaimRecordController extends Controller
             $query->where('severity', $severity);
         }
 
-        $records = $query->orderBy('discharge_date', 'desc')->get();
+        // Optimize memory: Select only required columns and use lazy loading
+        $records = $query->select([
+            'no_rm',
+            'nama_pasien',
+            'discharge_date',
+            'inacbg',
+            'severity',
+            'dpjp',
+            'tarif_rs',
+            'total_tarif',
+            'selisih'
+        ])->orderBy('discharge_date', 'desc')->lazy(1000);
 
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();

@@ -50,23 +50,31 @@ class Doctor extends Model
             return 'Lain-lain';
         }
 
-        // 1. Pencocokan langsung (exact case-insensitive)
-        $doctor = self::where('nama', $dpjp)
-            ->orWhere('nama_gelar', $dpjp)
-            ->first();
-            
-        if ($doctor) {
-            return $doctor->ksm;
-        }
-
-        // Cache data dokter untuk meminimalkan beban query database berulang
+        // Cache data dokter dan exact mapping untuk pencocokan cepat
+        static $exactMap = null;
         static $allDoctors = null;
-        if ($allDoctors === null) {
+
+        if ($exactMap === null) {
+            $exactMap = [];
             try {
                 $allDoctors = self::all();
+                foreach ($allDoctors as $doc) {
+                    if (!empty($doc->nama)) {
+                        $exactMap[strtolower($doc->nama)] = $doc->ksm;
+                    }
+                    if (!empty($doc->nama_gelar)) {
+                        $exactMap[strtolower($doc->nama_gelar)] = $doc->ksm;
+                    }
+                }
             } catch (\Exception $e) {
                 $allDoctors = collect();
             }
+        }
+
+        // 1. Pencocokan langsung (exact case-insensitive) lewat cache map
+        $dpjpLower = strtolower($dpjp);
+        if (isset($exactMap[$dpjpLower])) {
+            return $exactMap[$dpjpLower];
         }
 
         // 2. Pencocokan nama yang dinormalisasi (menghapus gelar/spasi)
