@@ -39,6 +39,11 @@ Route::middleware(['auth'])->group(function () {
     Route::get('dpjp-report/export/{jenis_rawat}', [ClaimRecordController::class, 'exportDpjp'])->name('claim-records.dpjp.export');
     Route::get('dpjp-report/ksm/{jenis_rawat}/{ksm}', [ClaimRecordController::class, 'ksmReport'])->name('claim-records.dpjp.ksm')->where('ksm', '.*');
 
+    // --- LAPORAN KOMPONEN BIAYA ---
+    Route::get('cost-report/ranap', [ClaimRecordController::class, 'costReportRanap'])->name('claim-records.cost.ranap');
+    Route::get('cost-report/rajal', [ClaimRecordController::class, 'costReportRajal'])->name('claim-records.cost.rajal');
+    Route::get('cost-report/export/{jenis_rawat}', [ClaimRecordController::class, 'exportCostReport'])->name('claim-records.cost.export');
+
     // --- MANAJEMEN AKUN (Hanya Administrator) ---
     Route::middleware(['role:administrator'])->prefix('users')->name('users.')->group(function () {
         Route::get('/', [UserController::class, 'index'])->name('index');

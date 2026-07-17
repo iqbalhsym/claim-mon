@@ -688,6 +688,191 @@ class ClaimRecordController extends Controller
         ]);
     }
 
+    public function costReportRanap(Request $request)
+    {
+        return $this->costReport($request, 'ranap');
+    }
+
+    public function costReportRajal(Request $request)
+    {
+        return $this->costReport($request, 'rajal');
+    }
+
+    public function costReport(Request $request, $jenisRawat = 'ranap')
+    {
+        $driver = DB::connection()->getDriverName();
+        $monthExpr = $driver === 'pgsql'
+            ? "to_char(discharge_date, 'YYYY-MM')"
+            : "strftime('%Y-%m', discharge_date)";
+
+        $fields = [
+            'PROSEDUR_NON_BEDAH', 'PROSEDUR_BEDAH', 'KONSULTASI', 'TENAGA_AHLI',
+            'KEPERAWATAN', 'PENUNJANG', 'RADIOLOGI', 'LABORATORIUM', 'PELAYANAN_DARAH',
+            'REHABILITASI', 'KAMAR_AKOMODASI', 'RAWAT_INTENSIF', 'OBAT', 'ALKES',
+            'BMHP', 'SEWA_ALAT', 'OBAT_KRONIS', 'OBAT_KEMO'
+        ];
+
+        $selects = ["$monthExpr as month_key"];
+        foreach ($fields as $field) {
+            if ($driver === 'pgsql') {
+                $selects[] = "SUM(COALESCE(CAST(raw_data->>'$field' AS NUMERIC), 0)) as " . strtolower($field);
+            } else {
+                $selects[] = "SUM(COALESCE(CAST(json_extract(raw_data, '$.$field') AS NUMERIC), 0)) as " . strtolower($field);
+            }
+        }
+
+        $stats = ClaimRecord::where('jenis_rawat', $jenisRawat)
+            ->whereNotNull('discharge_date')
+            ->selectRaw(implode(', ', $selects))
+            ->groupBy('month_key')
+            ->orderBy('month_key', 'desc')
+            ->get();
+
+        $totals = [];
+        foreach ($fields as $field) {
+            $key = strtolower($field);
+            $totals[$key] = $stats->sum($key);
+        }
+
+        return view('claim_records.cost_report', compact('stats', 'totals', 'fields', 'jenisRawat'));
+    }
+
+    public function exportCostReport(Request $request, $jenisRawat)
+    {
+        $driver = DB::connection()->getDriverName();
+        $monthExpr = $driver === 'pgsql'
+            ? "to_char(discharge_date, 'YYYY-MM')"
+            : "strftime('%Y-%m', discharge_date)";
+
+        $fields = [
+            'PROSEDUR_NON_BEDAH', 'PROSEDUR_BEDAH', 'KONSULTASI', 'TENAGA_AHLI',
+            'KEPERAWATAN', 'PENUNJANG', 'RADIOLOGI', 'LABORATORIUM', 'PELAYANAN_DARAH',
+            'REHABILITASI', 'KAMAR_AKOMODASI', 'RAWAT_INTENSIF', 'OBAT', 'ALKES',
+            'BMHP', 'SEWA_ALAT', 'OBAT_KRONIS', 'OBAT_KEMO'
+        ];
+
+        $selects = ["$monthExpr as month_key"];
+        foreach ($fields as $field) {
+            if ($driver === 'pgsql') {
+                $selects[] = "SUM(COALESCE(CAST(raw_data->>'$field' AS NUMERIC), 0)) as " . strtolower($field);
+            } else {
+                $selects[] = "SUM(COALESCE(CAST(json_extract(raw_data, '$.$field') AS NUMERIC), 0)) as " . strtolower($field);
+            }
+        }
+
+        $stats = ClaimRecord::where('jenis_rawat', $jenisRawat)
+            ->whereNotNull('discharge_date')
+            ->selectRaw(implode(', ', $selects))
+            ->groupBy('month_key')
+            ->orderBy('month_key', 'desc')
+            ->get();
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        $titleText = 'Laporan Komponen Biaya ' . ($jenisRawat === 'ranap' ? 'Ranap' : 'Rajal');
+        $sheet->setTitle('Komponen Biaya');
+
+        // Headers: Row 1
+        $sheet->setCellValue('A1', 'Komponen Biaya');
+        $sheet->getStyle('A1')->getFont()->setBold(true);
+
+        $colIdx = 2;
+        foreach ($stats as $row) {
+            try {
+                $carbon = Carbon::createFromFormat('Y-m', $row->month_key);
+                $monthLabel = $carbon->translatedFormat('F Y');
+            } catch (\Exception $e) {
+                $monthLabel = $row->month_key;
+            }
+            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIdx);
+            $sheet->setCellValue($colLetter . '1', $monthLabel);
+            $sheet->getStyle($colLetter . '1')->getFont()->setBold(true);
+            $colIdx++;
+        }
+
+        // Total Column at the end
+        $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIdx);
+        $sheet->setCellValue($colLetter . '1', 'Total');
+        $sheet->getStyle($colLetter . '1')->getFont()->setBold(true);
+        $totalColIdx = $colIdx;
+
+        // Initialize monthly sums
+        $monthTotals = [];
+        for ($c = 2; $c < $totalColIdx; $c++) {
+            $monthTotals[$c] = 0;
+        }
+        $grandTotal = 0;
+
+        // Write rows
+        $rowNum = 2;
+        foreach ($fields as $field) {
+            $key = strtolower($field);
+            $sheet->setCellValue('A' . $rowNum, ucwords(strtolower(str_replace('_', ' ', $field))));
+            
+            $colIdx = 2;
+            $componentTotal = 0;
+            foreach ($stats as $row) {
+                $val = (float)($row->$key ?? 0);
+                $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIdx);
+                $sheet->setCellValue($colLetter . $rowNum, $val);
+                
+                $componentTotal += $val;
+                $monthTotals[$colIdx] += $val;
+                $colIdx++;
+            }
+
+            // Total Column for this row
+            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($totalColIdx);
+            $sheet->setCellValue($colLetter . $rowNum, $componentTotal);
+            $sheet->getStyle($colLetter . $rowNum)->getFont()->setBold(true);
+            
+            $grandTotal += $componentTotal;
+            $rowNum++;
+        }
+
+        // Totals Row at the bottom
+        $sheet->setCellValue('A' . $rowNum, 'Total');
+        $sheet->getStyle('A' . $rowNum)->getFont()->setBold(true);
+
+        $colIdx = 2;
+        foreach ($stats as $row) {
+            $val = $monthTotals[$colIdx] ?? 0;
+            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIdx);
+            $sheet->setCellValue($colLetter . $rowNum, $val);
+            $sheet->getStyle($colLetter . $rowNum)->getFont()->setBold(true);
+            $colIdx++;
+        }
+
+        // Grand Total cell
+        $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($totalColIdx);
+        $sheet->setCellValue($colLetter . $rowNum, $grandTotal);
+        $sheet->getStyle($colLetter . $rowNum)->getFont()->setBold(true);
+
+        // Auto-size columns
+        $highestCol = $sheet->getHighestColumn();
+        $highestColIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestCol);
+        for ($col = 1; $col <= $highestColIndex; $col++) {
+            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
+            $sheet->getColumnDimension($colLetter)->setAutoSize(true);
+        }
+
+        $writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Xlsx');
+        $fileName = str_replace(' ', '_', strtolower($titleText)) . '_' . date('Ymd_His') . '.xlsx';
+
+        return response()->stream(
+            function() use ($writer) {
+                $writer->save('php://output');
+            },
+            200,
+            [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+                'Cache-Control' => 'max-age=0',
+            ]
+        );
+    }
+
     private function parseExcelDate($value): ?Carbon
     {
         if (empty($value) && $value !== '0') {
