@@ -926,6 +926,15 @@
     </div>
   </div>
 
+  <!-- Fullscreen Loading Overlay for Export -->
+  <div id="export-loading-overlay" class="position-fixed top-0 start-0 w-100 h-100 d-none" style="background: rgba(11, 19, 43, 0.82); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center; flex-direction: column;">
+    <div class="spinner-border text-primary mb-3" role="status" style="width: 3.5rem; height: 3.5rem; border-width: 0.3em;">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <h5 class="text-white fw-bold mb-1" style="letter-spacing: 0.5px;">Mengekspor &amp; Mengunduh Data</h5>
+    <p class="text-white text-opacity-75 small mb-0">Sedang memproses file Excel, mohon tunggu sebentar...</p>
+  </div>
+
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
@@ -965,6 +974,77 @@
         themeToggler.innerHTML = '<i data-feather="sun"></i>';
       }
       feather.replace();
+    });
+
+    // Intercept clicks on links that contain '/export/'
+    document.addEventListener('click', function (e) {
+      const link = e.target.closest('a');
+      if (!link) return;
+      
+      const href = link.getAttribute('href');
+      if (href && href.includes('/export/')) {
+        // If it already has download_token, let the default behavior happen
+        if (href.includes('download_token=')) {
+          return;
+        }
+
+        e.preventDefault();
+
+        const token = Date.now();
+        let newHref = href;
+        if (newHref.includes('?')) {
+          newHref += '&download_token=' + token;
+        } else {
+          newHref += '?download_token=' + token;
+        }
+
+        // Show loading overlay
+        const overlay = document.getElementById('export-loading-overlay');
+        if (overlay) {
+          overlay.classList.remove('d-none');
+          overlay.style.setProperty('display', 'flex', 'important');
+        }
+
+        // Create temporary hidden iframe to trigger download
+        const iframeId = 'download_iframe_' + token;
+        let iframe = document.getElementById(iframeId);
+        if (!iframe) {
+          iframe = document.createElement('iframe');
+          iframe.id = iframeId;
+          iframe.style.display = 'none';
+          document.body.appendChild(iframe);
+        }
+        iframe.src = newHref;
+
+        // Poll for the download completion cookie
+        const checkCookie = setInterval(function () {
+          const cookieName = 'download_token_' + token + '=';
+          const cookies = document.cookie.split(';');
+          let found = false;
+          for (let i = 0; i < cookies.length; i++) {
+            let c = cookies[i].trim();
+            if (c.indexOf(cookieName) === 0) {
+              found = true;
+              break;
+            }
+          }
+          if (found) {
+            clearInterval(checkCookie);
+            if (overlay) {
+              overlay.classList.add('d-none');
+              overlay.style.setProperty('display', 'none', 'important');
+            }
+            // Delete cookie
+            document.cookie = 'download_token_' + token + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+            // Cleanup iframe after a short delay
+            setTimeout(() => {
+              if (iframe.parentNode) {
+                iframe.parentNode.removeChild(iframe);
+              }
+            }, 1000);
+          }
+        }, 300);
+      }
     });
   </script>
   @yield('js')

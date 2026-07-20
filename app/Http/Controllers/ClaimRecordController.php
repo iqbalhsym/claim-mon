@@ -6,6 +6,7 @@ use App\Models\ClaimRecord;
 use Illuminate\Http\Request;
 use App\Services\ChunkReadFilter;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Carbon\Carbon;
 
@@ -205,6 +206,9 @@ class ClaimRecordController extends Controller
                 $totalInserted += count($batch);
             }
 
+            Cache::forget('cost_report_data_ranap');
+            Cache::forget('cost_report_data_rajal');
+
             return redirect()->route($jenisRawatSource === 'rajal' ? 'claim-records.rajal' : 'claim-records.ranap')
                 ->with('success', "Berhasil mengimpor {$totalInserted} data klaim.");
         } catch (\Exception $e) {
@@ -216,6 +220,9 @@ class ClaimRecordController extends Controller
     public function truncate(Request $request, $jenisRawat)
     {
         $deleteMonth = $request->input('delete_month', 'all');
+
+        Cache::forget('cost_report_data_ranap');
+        Cache::forget('cost_report_data_rajal');
 
         if ($deleteMonth === 'all') {
             ClaimRecord::where('jenis_rawat', $jenisRawat)->delete();
@@ -544,16 +551,22 @@ class ClaimRecordController extends Controller
         $monthStr = $selectedMonth ? '_' . $selectedMonth : '_semua_periode';
         $fileName = 'rekap_dpjp_' . $jenisRawat . $monthStr . '.xlsx';
 
+        $headers = [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+            'Cache-Control' => 'max-age=0',
+        ];
+
+        if ($request->has('download_token')) {
+            $headers['Set-Cookie'] = 'download_token_' . $request->query('download_token') . '=completed; Path=/; Max-Age=60';
+        }
+
         return response()->stream(
             function() use ($writer) {
                 $writer->save('php://output');
             },
             200,
-            [
-                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
-                'Cache-Control' => 'max-age=0',
-            ]
+            $headers
         );
     }
 
@@ -651,16 +664,22 @@ class ClaimRecordController extends Controller
         $severityStr = $severity ? '_severity_' . strtolower($severity) : '';
         $fileName = 'data_klaim_export_' . $jenisRawat . $severityStr . '_' . date('Ymd_His') . '.xlsx';
 
+        $headers = [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+            'Cache-Control' => 'max-age=0',
+        ];
+
+        if ($request->has('download_token')) {
+            $headers['Set-Cookie'] = 'download_token_' . $request->query('download_token') . '=completed; Path=/; Max-Age=60';
+        }
+
         return response()->stream(
             function() use ($writer) {
                 $writer->save('php://output');
             },
             200,
-            [
-                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
-                'Cache-Control' => 'max-age=0',
-            ]
+            $headers
         );
     }
 
@@ -721,18 +740,29 @@ class ClaimRecordController extends Controller
             }
         }
 
-        $stats = ClaimRecord::where('jenis_rawat', $jenisRawat)
-            ->whereNotNull('discharge_date')
-            ->selectRaw(implode(', ', $selects))
-            ->groupBy('month_key')
-            ->orderBy('month_key', 'desc')
-            ->get();
+        $cacheKey = "cost_report_data_{$jenisRawat}";
+        $data = Cache::rememberForever($cacheKey, function () use ($jenisRawat, $selects, $fields) {
+            $stats = ClaimRecord::where('jenis_rawat', $jenisRawat)
+                ->whereNotNull('discharge_date')
+                ->selectRaw(implode(', ', $selects))
+                ->groupBy('month_key')
+                ->orderBy('month_key', 'desc')
+                ->get();
 
-        $totals = [];
-        foreach ($fields as $field) {
-            $key = strtolower($field);
-            $totals[$key] = $stats->sum($key);
-        }
+            $totals = [];
+            foreach ($fields as $field) {
+                $key = strtolower($field);
+                $totals[$key] = $stats->sum($key);
+            }
+
+            return [
+                'stats' => $stats,
+                'totals' => $totals,
+            ];
+        });
+
+        $stats = $data['stats'];
+        $totals = $data['totals'];
 
         return view('claim_records.cost_report', compact('stats', 'totals', 'fields', 'jenisRawat'));
     }
@@ -760,12 +790,28 @@ class ClaimRecordController extends Controller
             }
         }
 
-        $stats = ClaimRecord::where('jenis_rawat', $jenisRawat)
-            ->whereNotNull('discharge_date')
-            ->selectRaw(implode(', ', $selects))
-            ->groupBy('month_key')
-            ->orderBy('month_key', 'desc')
-            ->get();
+        $cacheKey = "cost_report_data_{$jenisRawat}";
+        $data = Cache::rememberForever($cacheKey, function () use ($jenisRawat, $selects, $fields) {
+            $stats = ClaimRecord::where('jenis_rawat', $jenisRawat)
+                ->whereNotNull('discharge_date')
+                ->selectRaw(implode(', ', $selects))
+                ->groupBy('month_key')
+                ->orderBy('month_key', 'desc')
+                ->get();
+
+            $totals = [];
+            foreach ($fields as $field) {
+                $key = strtolower($field);
+                $totals[$key] = $stats->sum($key);
+            }
+
+            return [
+                'stats' => $stats,
+                'totals' => $totals,
+            ];
+        });
+
+        $stats = $data['stats'];
 
         $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
@@ -860,16 +906,22 @@ class ClaimRecordController extends Controller
         $writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Xlsx');
         $fileName = str_replace(' ', '_', strtolower($titleText)) . '_' . date('Ymd_His') . '.xlsx';
 
+        $headers = [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+            'Cache-Control' => 'max-age=0',
+        ];
+
+        if ($request->has('download_token')) {
+            $headers['Set-Cookie'] = 'download_token_' . $request->query('download_token') . '=completed; Path=/; Max-Age=60';
+        }
+
         return response()->stream(
             function() use ($writer) {
                 $writer->save('php://output');
             },
             200,
-            [
-                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
-                'Cache-Control' => 'max-age=0',
-            ]
+            $headers
         );
     }
 

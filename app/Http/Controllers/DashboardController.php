@@ -421,16 +421,22 @@ class DashboardController extends Controller
         }
         $fileName = 'severity_export_' . $jenisRawat . '_' . $periodeStr . '.xlsx';
 
+        $headers = [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+            'Cache-Control' => 'max-age=0',
+        ];
+
+        if ($request->has('download_token')) {
+            $headers['Set-Cookie'] = 'download_token_' . $request->query('download_token') . '=completed; Path=/; Max-Age=60';
+        }
+
         return response()->stream(
             function() use ($writer) {
                 $writer->save('php://output');
             },
             200,
-            [
-                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
-                'Cache-Control' => 'max-age=0',
-            ]
+            $headers
         );
     }
 }

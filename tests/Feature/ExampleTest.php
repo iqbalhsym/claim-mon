@@ -24,7 +24,7 @@ class ExampleTest extends TestCase
      */
     public function test_dashboard_export_requires_auth(): void
     {
-        $response = $this->get('/dashboard/export');
+        $response = $this->get('/dashboard/export/ranap');
         $response->assertRedirect('/login');
     }
 
@@ -33,7 +33,7 @@ class ExampleTest extends TestCase
      */
     public function test_dpjp_report_export_requires_auth(): void
     {
-        $response = $this->get('/dpjp-report/export');
+        $response = $this->get('/dpjp-report/export/ranap');
         $response->assertRedirect('/login');
     }
 
@@ -53,7 +53,7 @@ class ExampleTest extends TestCase
             ]);
         }
 
-        $response = $this->actingAs($user)->get('/dashboard/export');
+        $response = $this->actingAs($user)->get('/dashboard/export/ranap');
         
         $response->assertStatus(200);
         $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -76,7 +76,7 @@ class ExampleTest extends TestCase
             ]);
         }
 
-        $response = $this->actingAs($user)->get('/dpjp-report/export');
+        $response = $this->actingAs($user)->get('/dpjp-report/export/ranap');
         
         $response->assertStatus(200);
         $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -111,11 +111,11 @@ class ExampleTest extends TestCase
 
         $this->assertEquals(1, \App\Models\ClaimRecord::count());
 
-        $response = $this->actingAs($user)->delete('/claim-records/truncate', [
+        $response = $this->actingAs($user)->delete('/claim-records/truncate/ranap', [
             'delete_month' => 'all'
         ]);
 
-        $response->assertRedirect('/claim-records');
+        $response->assertRedirect('/claim-records/ranap');
         $this->assertEquals(0, \App\Models\ClaimRecord::count());
     }
 
@@ -162,11 +162,11 @@ class ExampleTest extends TestCase
 
         $this->assertEquals(2, \App\Models\ClaimRecord::count());
 
-        $response = $this->actingAs($user)->delete('/claim-records/truncate', [
+        $response = $this->actingAs($user)->delete('/claim-records/truncate/ranap', [
             'delete_month' => '2026-01'
         ]);
 
-        $response->assertRedirect('/claim-records');
+        $response->assertRedirect('/claim-records/ranap');
         $this->assertEquals(1, \App\Models\ClaimRecord::count());
         $this->assertEquals('Pasien Feb', \App\Models\ClaimRecord::first()->nama_pasien);
     }
@@ -301,14 +301,14 @@ class ExampleTest extends TestCase
         ]);
 
         // Ascending by total_tarif
-        $responseAsc = $this->actingAs($user)->get('/claim-records?sort_by=total_tarif&sort_dir=asc');
+        $responseAsc = $this->actingAs($user)->get('/claim-records/ranap?sort_by=total_tarif&sort_dir=asc');
         $responseAsc->assertStatus(200);
         $recordsAsc = $responseAsc->viewData('records');
         $this->assertEquals('A Patient', $recordsAsc[0]->nama_pasien);
         $this->assertEquals('Z Patient', $recordsAsc[1]->nama_pasien);
 
         // Descending by total_tarif
-        $responseDesc = $this->actingAs($user)->get('/claim-records?sort_by=total_tarif&sort_dir=desc');
+        $responseDesc = $this->actingAs($user)->get('/claim-records/ranap?sort_by=total_tarif&sort_dir=desc');
         $responseDesc->assertStatus(200);
         $recordsDesc = $responseDesc->viewData('records');
         $this->assertEquals('Z Patient', $recordsDesc[0]->nama_pasien);
@@ -342,24 +342,15 @@ class ExampleTest extends TestCase
             'selisih' => 2500000.00,
         ]);
 
-        $response = $this->actingAs($user)->get('/dpjp-report');
+        $response = $this->actingAs($user)->get('/dpjp-report/ranap');
 
         $response->assertStatus(200);
-        $response->assertViewHas('ksmDetailsJson');
-        
-        $ksmDetailsJson = $response->viewData('ksmDetailsJson');
-        $this->assertJson($ksmDetailsJson);
-        
-        $data = json_decode($ksmDetailsJson, true);
-        $this->assertArrayHasKey('2026-01', $data);
-        $this->assertArrayHasKey('Penyakit Dalam', $data['2026-01']);
-        
-        $doctorStats = $data['2026-01']['Penyakit Dalam'][0];
-        $this->assertEquals('Dr. Smith', $doctorStats['dpjp']);
-        $this->assertEquals(1, $doctorStats['patient_count']);
-        $this->assertEquals(12500000.00, $doctorStats['total_tarif']);
-        $this->assertEquals(10000000.00, $doctorStats['tarif_rs']);
-        $this->assertEquals(2500000.00, $doctorStats['selisih']);
+        $response->assertViewHas('stats');
+        $response->assertViewHas('ksmStats');
+        $response->assertViewHas('grandTotalPatients', 1);
+        $response->assertViewHas('grandTotalTarif', 12500000.00);
+        $response->assertViewHas('grandTotalRs', 10000000.00);
+        $response->assertViewHas('grandTotalSelisih', 2500000.00);
     }
 
     /**
@@ -389,7 +380,7 @@ class ExampleTest extends TestCase
             'selisih' => 2500000.00,
         ]);
 
-        $response = $this->actingAs($user)->get('/dpjp-report/ksm/Penyakit Dalam?month=2026-01');
+        $response = $this->actingAs($user)->get('/dpjp-report/ksm/ranap/Penyakit Dalam?month=2026-01');
 
         $response->assertStatus(200);
         $response->assertViewHas('ksm', 'Penyakit Dalam');
