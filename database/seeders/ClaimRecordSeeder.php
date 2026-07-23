@@ -24,12 +24,7 @@ class ClaimRecordSeeder extends Seeder
         $this->command->info("Membuka file Excel: " . basename($file));
 
         $headers = []; // index => headerName
-        $colMap = []; // letter => index
-        for ($i = 1; $i <= 150; $i++) {
-            $letter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
-            $colMap[$letter] = $i - 1;
-        }
-
+        $fieldMap = [];
         $batch = [];
         $batchSize = 250;
         $totalInserted = 0;
@@ -39,7 +34,7 @@ class ClaimRecordSeeder extends Seeder
         \App\Models\Doctor::resolveKsm('');
 
         \App\Services\FastXlsxReader::readRows($file, function(array $cells, int $rowNumber) use (
-            &$headers, $colMap, &$batch, $batchSize, &$totalInserted, $now
+            &$headers, &$fieldMap, &$batch, $batchSize, &$totalInserted, $now
         ) {
             if ($rowNumber === 1) {
                 // Header row
@@ -49,31 +44,56 @@ class ClaimRecordSeeder extends Seeder
                         $headers[$idx] = $headerVal;
                     }
                 }
+
+                // Build dynamic field mapping by matching header names
+                $lookup = [
+                    'no_rm'          => ['MRN', 'NO_RM', 'NO RM', 'NO. RM'],
+                    'nama_pasien'    => ['NAMA_PASIEN', 'NAMA PASIEN', 'PASIEN'],
+                    'admission_date' => ['ADMISSION_DATE', 'TGL_MASUK', 'TGL MASUK'],
+                    'discharge_date' => ['DISCHARGE_DATE', 'TGL_PULANG', 'TGL PULANG'],
+                    'inacbg'         => ['INACBG', 'KODE_INACBG'],
+                    'dpjp'           => ['DPJP', 'NAMA_DPJP', 'DOKTER'],
+                    'total_tarif'    => ['TOTAL_TARIF', 'TOTAL TARIF'],
+                    'tarif_rs'       => ['TARIF_RS', 'TARIF RS'],
+                ];
+
+                foreach ($lookup as $field => $candidates) {
+                    foreach ($headers as $idx => $name) {
+                        $normName = strtoupper(trim(str_replace(['_', '.', ' '], '', $name)));
+                        foreach ($candidates as $cand) {
+                            $normCand = strtoupper(trim(str_replace(['_', '.', ' '], '', $cand)));
+                            if ($normName === $normCand) {
+                                $fieldMap[$field] = $idx;
+                                break 2;
+                            }
+                        }
+                    }
+                }
                 return;
             }
 
-            // Get values using mapped letters/indices
-            $noRm = isset($colMap['AU']) && isset($cells[$colMap['AU']]) ? trim((string)$cells[$colMap['AU']]) : '';
-            $namaPasien = isset($colMap['AT']) && isset($cells[$colMap['AT']]) ? trim((string)$cells[$colMap['AT']]) : '';
+            // Extract values using dynamic header index mapping
+            $noRm = isset($fieldMap['no_rm']) && isset($cells[$fieldMap['no_rm']]) ? trim((string)$cells[$fieldMap['no_rm']]) : '';
+            $namaPasien = isset($fieldMap['nama_pasien']) && isset($cells[$fieldMap['nama_pasien']]) ? trim((string)$cells[$fieldMap['nama_pasien']]) : '';
 
             // Skip if no MRN (No RM)
             if (empty($noRm) && empty($namaPasien)) {
                 return;
             }
 
-            $rawAdmission = isset($colMap['F']) && isset($cells[$colMap['F']]) ? $cells[$colMap['F']] : null;
-            $rawDischarge = isset($colMap['G']) && isset($cells[$colMap['G']]) ? $cells[$colMap['G']] : null;
+            $rawAdmission = isset($fieldMap['admission_date']) && isset($cells[$fieldMap['admission_date']]) ? $cells[$fieldMap['admission_date']] : null;
+            $rawDischarge = isset($fieldMap['discharge_date']) && isset($cells[$fieldMap['discharge_date']]) ? $cells[$fieldMap['discharge_date']] : null;
 
             $admissionDate = $this->parseExcelDate($rawAdmission);
             $dischargeDate = $this->parseExcelDate($rawDischarge);
 
-            $inacbg = isset($colMap['T']) && isset($cells[$colMap['T']]) ? trim((string)$cells[$colMap['T']]) : '';
+            $inacbg = isset($fieldMap['inacbg']) && isset($cells[$fieldMap['inacbg']]) ? trim((string)$cells[$fieldMap['inacbg']]) : '';
             $severity = ClaimRecord::parseSeverity($inacbg);
-            $dpjp = isset($colMap['AX']) && isset($cells[$colMap['AX']]) ? trim((string)$cells[$colMap['AX']]) : '';
+            $dpjp = isset($fieldMap['dpjp']) && isset($cells[$fieldMap['dpjp']]) ? trim((string)$cells[$fieldMap['dpjp']]) : '';
             $ksm = \App\Models\Doctor::resolveKsm($dpjp);
 
-            $totalTarif = isset($colMap['AM']) && isset($cells[$colMap['AM']]) ? (float)$cells[$colMap['AM']] : 0.0;
-            $tarifRs = isset($colMap['AN']) && isset($cells[$colMap['AN']]) ? (float)$cells[$colMap['AN']] : 0.0;
+            $totalTarif = isset($fieldMap['total_tarif']) && isset($cells[$fieldMap['total_tarif']]) ? (float)$cells[$fieldMap['total_tarif']] : 0.0;
+            $tarifRs = isset($fieldMap['tarif_rs']) && isset($cells[$fieldMap['tarif_rs']]) ? (float)$cells[$fieldMap['tarif_rs']] : 0.0;
             $selisih = $totalTarif - $tarifRs;
 
             // Build raw data using only columns up to actual highest header column
