@@ -33,131 +33,111 @@ class ImportClaimRecordsJob implements ShouldQueue
     {
         ini_set('memory_limit', '512M');
 
-        $reader = IOFactory::createReaderForFile($this->filePath);
-        $reader->setReadDataOnly(true);
-
-        $sheetInfo = $reader->listWorksheetInfo($this->filePath);
-        $highestRow = $sheetInfo[0]['totalRows'] ?? 0;
-
-        if ($highestRow <= 1) {
+        if (!file_exists($this->filePath)) {
             $this->cleanup();
             return;
         }
 
+        $headers = []; // index => headerName
+        $colMap = []; // letter => index
+        for ($i = 1; $i <= 150; $i++) {
+            $letter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
+            $colMap[$letter] = $i - 1;
+        }
+
         $batch = [];
-        $batchSize = 100;
-        $chunkSize = 500;
+        $batchSize = 250;
         $totalInserted = 0;
         $now = now()->toDateTimeString();
 
         // Pre-load KSM lookup map to prevent N+1 query overhead
         \App\Models\Doctor::resolveKsm('');
 
-        for ($startRow = 2; $startRow <= $highestRow; $startRow += $chunkSize) {
-            $filter = new ChunkReadFilter($startRow, $chunkSize);
-            $reader->setReadFilter($filter);
-
-            $spreadsheet = $reader->load($this->filePath);
-            $sheet = $spreadsheet->getActiveSheet();
-
-            $endRow = min($startRow + $chunkSize - 1, $highestRow);
-
-            $highestCol = $sheet->getHighestColumn();
-            $highestColIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestCol);
-
-            // Only track columns that actually have a header label
-            $actualHighestColIndex = 0;
-            $headers = [];
-            for ($col = 1; $col <= $highestColIndex; $col++) {
-                $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
-                $headerVal = trim($sheet->getCell($colLetter . '1')->getValue() ?? '');
-                if ($headerVal !== '') {
-                    $headers[$colLetter] = $headerVal;
-                    $actualHighestColIndex = $col;
-                }
-            }
-
-            for ($row = $startRow; $row <= $endRow; $row++) {
-                $noRm = trim($sheet->getCell('AU' . $row)->getValue() ?? '');
-                $namaPasien = trim($sheet->getCell('AT' . $row)->getValue() ?? '');
-
-                if (empty($noRm) && empty($namaPasien)) {
-                    continue;
-                }
-
-                $rawAdmission = $sheet->getCell('F' . $row)->getValue();
-                $rawDischarge = $sheet->getCell('G' . $row)->getValue();
-
-                $admissionDate = $this->parseExcelDate($rawAdmission);
-                $dischargeDate = $this->parseExcelDate($rawDischarge);
-
-                $inacbg = trim($sheet->getCell('T' . $row)->getValue() ?? '');
-                $severity = ClaimRecord::parseSeverity($inacbg);
-                $dpjp = trim($sheet->getCell('AX' . $row)->getValue() ?? '');
-                $ksm = \App\Models\Doctor::resolveKsm($dpjp);
-
-                $totalTarif = (float)($sheet->getCell('AM' . $row)->getValue() ?? 0);
-                $tarifRs = (float)($sheet->getCell('AN' . $row)->getValue() ?? 0);
-                $selisih = $totalTarif - $tarifRs;
-
-                // Build raw data using only columns up to actual highest header column
-                $rawData = [];
-                for ($col = 1; $col <= $actualHighestColIndex; $col++) {
-                    $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
-                    $headerName = $headers[$colLetter] ?? '';
-                    if ($headerName !== '') {
-                        $rawData[$headerName] = $sheet->getCell($colLetter . $row)->getValue();
+        \App\Services\FastXlsxReader::readRows($this->filePath, function(array $cells, int $rowNumber) use (
+            &$headers, $colMap, &$batch, $batchSize, &$totalInserted, $now
+        ) {
+            if ($rowNumber === 1) {
+                // Header row
+                foreach ($cells as $idx => $val) {
+                    $headerVal = trim((string)$val);
+                    if ($headerVal !== '') {
+                        $headers[$idx] = $headerVal;
                     }
                 }
-
-                $batch[] = [
-                    'no_rm'               => $noRm,
-                    'nama_pasien'         => $namaPasien,
-                    'admission_date'      => $admissionDate?->toDateString(),
-                    'discharge_date'      => $dischargeDate?->toDateString(),
-                    'inacbg'              => $inacbg,
-                    'severity'            => $severity,
-                    'dpjp'                => $dpjp,
-                    'ksm'                 => $ksm,
-                    'total_tarif'         => $totalTarif,
-                    'tarif_rs'            => $tarifRs,
-                    'selisih'             => $selisih,
-                    'jenis_rawat'         => ClaimRecord::parseJenisRawat($inacbg),
-                    'raw_data'            => json_encode($rawData),
-                    'prosedur_non_bedah'  => (float)($rawData['PROSEDUR_NON_BEDAH'] ?? 0),
-                    'prosedur_bedah'      => (float)($rawData['PROSEDUR_BEDAH'] ?? 0),
-                    'konsultasi'          => (float)($rawData['KONSULTASI'] ?? 0),
-                    'tenaga_ahli'         => (float)($rawData['TENAGA_AHLI'] ?? 0),
-                    'keperawatan'         => (float)($rawData['KEPERAWATAN'] ?? 0),
-                    'penunjang'           => (float)($rawData['PENUNJANG'] ?? 0),
-                    'radiologi'           => (float)($rawData['RADIOLOGI'] ?? 0),
-                    'laboratorium'        => (float)($rawData['LABORATORIUM'] ?? 0),
-                    'pelayanan_darah'     => (float)($rawData['PELAYANAN_DARAH'] ?? 0),
-                    'rehabilitasi'        => (float)($rawData['REHABILITASI'] ?? 0),
-                    'kamar_akomodasi'     => (float)($rawData['KAMAR_AKOMODASI'] ?? 0),
-                    'rawat_intensif'      => (float)($rawData['RAWAT_INTENSIF'] ?? 0),
-                    'obat'                => (float)($rawData['OBAT'] ?? 0),
-                    'alkes'               => (float)($rawData['ALKES'] ?? 0),
-                    'bmhp'                => (float)($rawData['BMHP'] ?? 0),
-                    'sewa_alat'           => (float)($rawData['SEWA_ALAT'] ?? 0),
-                    'obat_kronis'         => (float)($rawData['OBAT_KRONIS'] ?? 0),
-                    'obat_kemo'           => (float)($rawData['OBAT_KEMO'] ?? 0),
-                    'created_at'          => $now,
-                    'updated_at'          => $now,
-                ];
-
-                if (count($batch) >= $batchSize) {
-                    ClaimRecord::insert($batch);
-                    $totalInserted += count($batch);
-                    $batch = [];
-                }
+                return;
             }
 
-            // Free worksheet memory per chunk
-            $spreadsheet->disconnectWorksheets();
-            unset($spreadsheet, $sheet);
-            gc_collect_cycles();
-        }
+            // Get values using mapped letters/indices
+            $noRm = isset($colMap['AU']) && isset($cells[$colMap['AU']]) ? trim((string)$cells[$colMap['AU']]) : '';
+            $namaPasien = isset($colMap['AT']) && isset($cells[$colMap['AT']]) ? trim((string)$cells[$colMap['AT']]) : '';
+
+            if (empty($noRm) && empty($namaPasien)) {
+                return;
+            }
+
+            $rawAdmission = isset($colMap['F']) && isset($cells[$colMap['F']]) ? $cells[$colMap['F']] : null;
+            $rawDischarge = isset($colMap['G']) && isset($cells[$colMap['G']]) ? $cells[$colMap['G']] : null;
+
+            $admissionDate = $this->parseExcelDate($rawAdmission);
+            $dischargeDate = $this->parseExcelDate($rawDischarge);
+
+            $inacbg = isset($colMap['T']) && isset($cells[$colMap['T']]) ? trim((string)$cells[$colMap['T']]) : '';
+            $severity = ClaimRecord::parseSeverity($inacbg);
+            $dpjp = isset($colMap['AX']) && isset($cells[$colMap['AX']]) ? trim((string)$cells[$colMap['AX']]) : '';
+            $ksm = \App\Models\Doctor::resolveKsm($dpjp);
+
+            $totalTarif = isset($colMap['AM']) && isset($cells[$colMap['AM']]) ? (float)$cells[$colMap['AM']] : 0.0;
+            $tarifRs = isset($colMap['AN']) && isset($cells[$colMap['AN']]) ? (float)$cells[$colMap['AN']] : 0.0;
+            $selisih = $totalTarif - $tarifRs;
+
+            // Build raw data using only columns up to actual highest header column
+            $rawData = [];
+            foreach ($headers as $idx => $headerName) {
+                $rawData[$headerName] = $cells[$idx] ?? null;
+            }
+
+            $batch[] = [
+                'no_rm'               => $noRm,
+                'nama_pasien'         => $namaPasien,
+                'admission_date'      => $admissionDate?->toDateString(),
+                'discharge_date'      => $dischargeDate?->toDateString(),
+                'inacbg'              => $inacbg,
+                'severity'            => $severity,
+                'dpjp'                => $dpjp,
+                'ksm'                 => $ksm,
+                'total_tarif'         => $totalTarif,
+                'tarif_rs'            => $tarifRs,
+                'selisih'             => $selisih,
+                'jenis_rawat'         => ClaimRecord::parseJenisRawat($inacbg),
+                'raw_data'            => json_encode($rawData),
+                'prosedur_non_bedah'  => (float)($rawData['PROSEDUR_NON_BEDAH'] ?? 0),
+                'prosedur_bedah'      => (float)($rawData['PROSEDUR_BEDAH'] ?? 0),
+                'konsultasi'          => (float)($rawData['KONSULTASI'] ?? 0),
+                'tenaga_ahli'         => (float)($rawData['TENAGA_AHLI'] ?? 0),
+                'keperawatan'         => (float)($rawData['KEPERAWATAN'] ?? 0),
+                'penunjang'           => (float)($rawData['PENUNJANG'] ?? 0),
+                'radiologi'           => (float)($rawData['RADIOLOGI'] ?? 0),
+                'laboratorium'        => (float)($rawData['LABORATORIUM'] ?? 0),
+                'pelayanan_darah'     => (float)($rawData['PELAYANAN_DARAH'] ?? 0),
+                'rehabilitasi'        => (float)($rawData['REHABILITASI'] ?? 0),
+                'kamar_akomodasi'     => (float)($rawData['KAMAR_AKOMODASI'] ?? 0),
+                'rawat_intensif'      => (float)($rawData['RAWAT_INTENSIF'] ?? 0),
+                'obat'                => (float)($rawData['OBAT'] ?? 0),
+                'alkes'               => (float)($rawData['ALKES'] ?? 0),
+                'bmhp'                => (float)($rawData['BMHP'] ?? 0),
+                'sewa_alat'           => (float)($rawData['SEWA_ALAT'] ?? 0),
+                'obat_kronis'         => (float)($rawData['OBAT_KRONIS'] ?? 0),
+                'obat_kemo'           => (float)($rawData['OBAT_KEMO'] ?? 0),
+                'created_at'          => $now,
+                'updated_at'          => $now,
+            ];
+
+            if (count($batch) >= $batchSize) {
+                ClaimRecord::insert($batch);
+                $totalInserted += count($batch);
+                $batch = [];
+            }
+        });
 
         if (count($batch) > 0) {
             ClaimRecord::insert($batch);
@@ -200,6 +180,10 @@ class ImportClaimRecordsJob implements ShouldQueue
     {
         if (empty($value) && $value !== '0') {
             return null;
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return Carbon::instance($value);
         }
 
         if (is_numeric($value)) {

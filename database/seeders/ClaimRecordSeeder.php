@@ -23,66 +23,63 @@ class ClaimRecordSeeder extends Seeder
 
         $this->command->info("Membuka file Excel: " . basename($file));
 
-        $reader = IOFactory::createReaderForFile($file);
-        $reader->setReadDataOnly(true);
-        $spreadsheet = $reader->load($file);
-        $sheet = $spreadsheet->getActiveSheet();
-
-        $highestRow = $sheet->getHighestRow();
-        $this->command->info("Total baris terdeteksi: $highestRow");
+        $headers = []; // index => headerName
+        $colMap = []; // letter => index
+        for ($i = 1; $i <= 150; $i++) {
+            $letter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i);
+            $colMap[$letter] = $i - 1;
+        }
 
         $batch = [];
         $batchSize = 250;
         $totalInserted = 0;
         $now = now()->toDateTimeString();
 
-        $highestCol = $sheet->getHighestColumn();
-        $highestColIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestCol);
+        // Pre-load KSM lookup map to prevent N+1 query overhead
+        \App\Models\Doctor::resolveKsm('');
 
-        // Only track columns that actually have a header label
-        $actualHighestColIndex = 0;
-        $headers = [];
-        for ($col = 1; $col <= $highestColIndex; $col++) {
-            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
-            $headerVal = trim($sheet->getCell($colLetter . '1')->getValue() ?? '');
-            if ($headerVal !== '') {
-                $headers[$colLetter] = $headerVal;
-                $actualHighestColIndex = $col;
+        \App\Services\FastXlsxReader::readRows($file, function(array $cells, int $rowNumber) use (
+            &$headers, $colMap, &$batch, $batchSize, &$totalInserted, $now
+        ) {
+            if ($rowNumber === 1) {
+                // Header row
+                foreach ($cells as $idx => $val) {
+                    $headerVal = trim((string)$val);
+                    if ($headerVal !== '') {
+                        $headers[$idx] = $headerVal;
+                    }
+                }
+                return;
             }
-        }
 
-        for ($row = 2; $row <= $highestRow; $row++) {
-            $noRm = trim($sheet->getCell('AU' . $row)->getValue() ?? '');
-            $namaPasien = trim($sheet->getCell('AT' . $row)->getValue() ?? '');
-            
+            // Get values using mapped letters/indices
+            $noRm = isset($colMap['AU']) && isset($cells[$colMap['AU']]) ? trim((string)$cells[$colMap['AU']]) : '';
+            $namaPasien = isset($colMap['AT']) && isset($cells[$colMap['AT']]) ? trim((string)$cells[$colMap['AT']]) : '';
+
             // Skip if no MRN (No RM)
             if (empty($noRm) && empty($namaPasien)) {
-                continue;
+                return;
             }
 
-            $rawAdmission = $sheet->getCell('F' . $row)->getValue();
-            $rawDischarge = $sheet->getCell('G' . $row)->getValue();
-            
+            $rawAdmission = isset($colMap['F']) && isset($cells[$colMap['F']]) ? $cells[$colMap['F']] : null;
+            $rawDischarge = isset($colMap['G']) && isset($cells[$colMap['G']]) ? $cells[$colMap['G']] : null;
+
             $admissionDate = $this->parseExcelDate($rawAdmission);
             $dischargeDate = $this->parseExcelDate($rawDischarge);
 
-            $inacbg = trim($sheet->getCell('T' . $row)->getValue() ?? '');
+            $inacbg = isset($colMap['T']) && isset($cells[$colMap['T']]) ? trim((string)$cells[$colMap['T']]) : '';
             $severity = ClaimRecord::parseSeverity($inacbg);
-            $dpjp = trim($sheet->getCell('AX' . $row)->getValue() ?? '');
+            $dpjp = isset($colMap['AX']) && isset($cells[$colMap['AX']]) ? trim((string)$cells[$colMap['AX']]) : '';
             $ksm = \App\Models\Doctor::resolveKsm($dpjp);
 
-            $totalTarif = (float)($sheet->getCell('AM' . $row)->getValue() ?? 0);
-            $tarifRs = (float)($sheet->getCell('AN' . $row)->getValue() ?? 0);
+            $totalTarif = isset($colMap['AM']) && isset($cells[$colMap['AM']]) ? (float)$cells[$colMap['AM']] : 0.0;
+            $tarifRs = isset($colMap['AN']) && isset($cells[$colMap['AN']]) ? (float)$cells[$colMap['AN']] : 0.0;
             $selisih = $totalTarif - $tarifRs;
 
             // Build raw data using only columns up to actual highest header column
             $rawData = [];
-            for ($col = 1; $col <= $actualHighestColIndex; $col++) {
-                $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
-                $headerName = $headers[$colLetter] ?? '';
-                if ($headerName !== '') {
-                    $rawData[$headerName] = $sheet->getCell($colLetter . $row)->getValue();
-                }
+            foreach ($headers as $idx => $headerName) {
+                $rawData[$headerName] = $cells[$idx] ?? null;
             }
 
             $batch[] = [
@@ -127,7 +124,7 @@ class ClaimRecordSeeder extends Seeder
                 $this->command->info("Telah memproses $totalInserted data...");
                 $batch = [];
             }
-        }
+        });
 
         if (count($batch) > 0) {
             ClaimRecord::insert($batch);
@@ -137,10 +134,14 @@ class ClaimRecordSeeder extends Seeder
         $this->command->info("Sukses mengimpor $totalInserted data klaim.");
     }
 
-    private function parseExcelDate($value): ?Carbon
+    private function parseExcelDate(mixed $value): ?Carbon
     {
         if (empty($value) && $value !== '0') {
             return null;
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return Carbon::instance($value);
         }
 
         if (is_numeric($value)) {

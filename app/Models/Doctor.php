@@ -52,22 +52,40 @@ class Doctor extends Model
 
         // Cache data dokter dan exact mapping untuk pencocokan cepat
         static $exactMap = null;
-        static $allDoctors = null;
+        static $normMap = null;
+        static $allDoctorsWithNormalized = null;
 
         if ($exactMap === null) {
             $exactMap = [];
+            $normMap = [];
+            $allDoctorsWithNormalized = [];
             try {
                 $allDoctors = self::all();
                 foreach ($allDoctors as $doc) {
+                    $normNama = self::normalizeName($doc->nama);
+                    $normGelar = self::normalizeName($doc->nama_gelar);
+
                     if (!empty($doc->nama)) {
                         $exactMap[strtolower($doc->nama)] = $doc->ksm;
+                        if ($normNama !== '') {
+                            $normMap[$normNama] = $doc->ksm;
+                        }
                     }
                     if (!empty($doc->nama_gelar)) {
                         $exactMap[strtolower($doc->nama_gelar)] = $doc->ksm;
+                        if ($normGelar !== '') {
+                            $normMap[$normGelar] = $doc->ksm;
+                        }
                     }
+
+                    $allDoctorsWithNormalized[] = [
+                        'ksm' => $doc->ksm,
+                        'norm_nama' => $normNama,
+                        'norm_gelar' => $normGelar,
+                    ];
                 }
             } catch (\Exception $e) {
-                $allDoctors = collect();
+                $allDoctorsWithNormalized = [];
             }
         }
 
@@ -77,20 +95,18 @@ class Doctor extends Model
             return $exactMap[$dpjpLower];
         }
 
-        // 2. Pencocokan nama yang dinormalisasi (menghapus gelar/spasi)
+        // 2. Pencocokan nama yang dinormalisasi (menghapus gelar/spasi) lewat cache map
         $normDb = self::normalizeName($dpjp);
         if (!empty($normDb)) {
-            foreach ($allDoctors as $doc) {
-                if (self::normalizeName($doc->nama) === $normDb || self::normalizeName($doc->nama_gelar) === $normDb) {
-                    return $doc->ksm;
-                }
+            if (isset($normMap[$normDb])) {
+                return $normMap[$normDb];
             }
 
             // 3. Pencocokan loose substring
-            foreach ($allDoctors as $doc) {
-                $normExcelNama = self::normalizeName($doc->nama);
+            foreach ($allDoctorsWithNormalized as $item) {
+                $normExcelNama = $item['norm_nama'];
                 if ($normExcelNama !== '' && (strpos($normDb, $normExcelNama) !== false || strpos($normExcelNama, $normDb) !== false)) {
-                    return $doc->ksm;
+                    return $item['ksm'];
                 }
             }
         }

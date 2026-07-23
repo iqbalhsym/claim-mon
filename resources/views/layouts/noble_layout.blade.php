@@ -899,14 +899,14 @@
         @if(session('success'))
           <div class="alert alert-success alert-dismissible fade show" role="alert">
             <i data-feather="check-circle" class="me-2" style="width: 16px; height: 16px;"></i>
-            {{ session('success') }}
+            {!! session('success') !!}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
           </div>
         @endif
         @if(session('error'))
           <div class="alert alert-danger alert-dismissible fade show" role="alert">
             <i data-feather="alert-circle" class="me-2" style="width: 16px; height: 16px;"></i>
-            {{ session('error') }}
+            {!! session('error') !!}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
           </div>
         @endif

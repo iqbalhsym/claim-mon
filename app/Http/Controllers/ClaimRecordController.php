@@ -98,23 +98,16 @@ class ClaimRecordController extends Controller
         $file = $request->file('file_excel');
         $originalName = $file->getClientOriginalName();
 
-        // Store file to a persistent path (not temp) so the Queue Job can read it
+        // Store file to a persistent path
         $storedPath = $file->store('imports', 'local');
         $absolutePath = \Illuminate\Support\Facades\Storage::disk('local')->path($storedPath);
 
-        // Dispatch the heavy import to background queue
-        \App\Jobs\ImportClaimRecordsJob::dispatch($absolutePath, $jenisRawatSource, $originalName);
-
-        // Clear any previous import status so the polling shows "processing"
-        Cache::put(
-            "import_status_{$jenisRawatSource}",
-            ['status' => 'processing', 'file' => $originalName],
-            now()->addMinutes(60)
-        );
+        // Execute import job synchronously (~8 seconds with FastXlsxReader)
+        \App\Jobs\ImportClaimRecordsJob::dispatchSync($absolutePath, $jenisRawatSource, $originalName);
 
         $redirectRoute = $jenisRawatSource === 'rajal' ? 'claim-records.rajal' : 'claim-records.ranap';
         return redirect()->route($redirectRoute)
-            ->with('import_processing', "File <strong>{$originalName}</strong> sedang diproses di latar belakang. Halaman akan otomatis memperbarui data setelah selesai.");
+            ->with('success', "File <strong>{$originalName}</strong> berhasil diimpor.");
     }
 
     /**
