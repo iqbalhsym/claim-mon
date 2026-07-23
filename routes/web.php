@@ -32,6 +32,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('claim-records/rajal', [ClaimRecordController::class, 'indexRajal'])->name('claim-records.rajal');
     Route::get('claim-records/export/{jenis_rawat}', [ClaimRecordController::class, 'export'])->name('claim-records.export');
     Route::post('claim-records/import', [ClaimRecordController::class, 'import'])->name('claim-records.import');
+    Route::get('claim-records/import-status', [ClaimRecordController::class, 'importStatus'])->name('claim-records.import-status');
     Route::delete('claim-records/truncate/{jenis_rawat}', [ClaimRecordController::class, 'truncate'])->name('claim-records.truncate');
     Route::get('claim-records/{id}', [ClaimRecordController::class, 'show'])->name('claim-records.show');
     Route::get('dpjp-report/ranap', [ClaimRecordController::class, 'dpjpReportRanap'])->name('claim-records.dpjp.ranap');

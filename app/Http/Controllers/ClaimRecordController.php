@@ -91,130 +91,40 @@ class ClaimRecordController extends Controller
     public function import(Request $request)
     {
         $request->validate([
-            'file_excel' => 'required|mimes:xlsx,xls,csv'
+            'file_excel' => 'required|mimes:xlsx,xls,csv|max:102400', // max 100MB
         ]);
 
         $jenisRawatSource = $request->input('jenis_rawat', 'ranap');
         $file = $request->file('file_excel');
-        $filePath = $file->getRealPath();
+        $originalName = $file->getClientOriginalName();
 
-        try {
-            $reader = IOFactory::createReaderForFile($filePath);
-            $reader->setReadDataOnly(true);
+        // Store file to a persistent path (not temp) so the Queue Job can read it
+        $storedPath = $file->store('imports', 'local');
+        $absolutePath = \Illuminate\Support\Facades\Storage::disk('local')->path($storedPath);
 
-            // Get total worksheet rows without reading the entire dataset
-            $sheetInfo = $reader->listWorksheetInfo($filePath);
-            $highestRow = $sheetInfo[0]['totalRows'] ?? 0;
+        // Dispatch the heavy import to background queue
+        \App\Jobs\ImportClaimRecordsJob::dispatch($absolutePath, $jenisRawatSource, $originalName);
 
-            if ($highestRow <= 1) {
-                return redirect()->route($jenisRawatSource === 'rajal' ? 'claim-records.rajal' : 'claim-records.ranap')
-                    ->with('error', "File excel kosong atau hanya berisi header.");
-            }
+        // Clear any previous import status so the polling shows "processing"
+        Cache::put(
+            "import_status_{$jenisRawatSource}",
+            ['status' => 'processing', 'file' => $originalName],
+            now()->addMinutes(60)
+        );
 
-            $batch = [];
-            $batchSize = 250;
-            $chunkSize = 2000;
-            $totalInserted = 0;
-            $now = now()->toDateTimeString();
+        $redirectRoute = $jenisRawatSource === 'rajal' ? 'claim-records.rajal' : 'claim-records.ranap';
+        return redirect()->route($redirectRoute)
+            ->with('import_processing', "File <strong>{$originalName}</strong> sedang diproses di latar belakang. Halaman akan otomatis memperbarui data setelah selesai.");
+    }
 
-            // Populate static in-memory lookup map in Doctor model to prevent N+1 query overhead
-            \App\Models\Doctor::resolveKsm('');
-
-            for ($startRow = 2; $startRow <= $highestRow; $startRow += $chunkSize) {
-                $filter = new ChunkReadFilter($startRow, $chunkSize);
-                $reader->setReadFilter($filter);
-
-                $spreadsheet = $reader->load($filePath);
-                $sheet = $spreadsheet->getActiveSheet();
-
-                $endRow = min($startRow + $chunkSize - 1, $highestRow);
-
-                $highestCol = $sheet->getHighestColumn();
-                $highestColIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestCol);
-                $headers = [];
-                for ($col = 1; $col <= $highestColIndex; $col++) {
-                    $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
-                    $headers[$colLetter] = trim($sheet->getCell($colLetter . '1')->getValue() ?? '');
-                }
-
-                for ($row = $startRow; $row <= $endRow; $row++) {
-                    $noRm = trim($sheet->getCell('AU' . $row)->getValue() ?? '');
-                    $namaPasien = trim($sheet->getCell('AT' . $row)->getValue() ?? '');
-
-                    if (empty($noRm) && empty($namaPasien)) {
-                        continue;
-                    }
-
-                    $rawAdmission = $sheet->getCell('F' . $row)->getValue();
-                    $rawDischarge = $sheet->getCell('G' . $row)->getValue();
-
-                    $admissionDate = $this->parseExcelDate($rawAdmission);
-                    $dischargeDate = $this->parseExcelDate($rawDischarge);
-
-                    $inacbg = trim($sheet->getCell('T' . $row)->getValue() ?? '');
-                    $severity = ClaimRecord::parseSeverity($inacbg);
-                    $dpjp = trim($sheet->getCell('AX' . $row)->getValue() ?? '');
-                    $ksm = \App\Models\Doctor::resolveKsm($dpjp);
-
-                    $totalTarif = (float)($sheet->getCell('AM' . $row)->getValue() ?? 0);
-                    $tarifRs = (float)($sheet->getCell('AN' . $row)->getValue() ?? 0);
-                    $selisih = $totalTarif - $tarifRs;
-
-                    // Build raw data
-                    $rawData = [];
-                    for ($col = 1; $col <= $highestColIndex; $col++) {
-                        $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
-                        $headerName = $headers[$colLetter] ?? $colLetter;
-                        if (!empty($headerName)) {
-                            $rawData[$headerName] = $sheet->getCell($colLetter . $row)->getValue();
-                        }
-                    }
-
-                    $batch[] = [
-                        'no_rm' => $noRm,
-                        'nama_pasien' => $namaPasien,
-                        'admission_date' => $admissionDate?->toDateString(),
-                        'discharge_date' => $dischargeDate?->toDateString(),
-                        'inacbg' => $inacbg,
-                        'severity' => $severity,
-                        'dpjp' => $dpjp,
-                        'ksm' => $ksm,
-                        'total_tarif' => $totalTarif,
-                        'tarif_rs' => $tarifRs,
-                        'selisih' => $selisih,
-                        'jenis_rawat' => ClaimRecord::parseJenisRawat($inacbg),
-                        'raw_data' => json_encode($rawData),
-                        'created_at' => $now,
-                        'updated_at' => $now,
-                    ];
-
-                    if (count($batch) >= $batchSize) {
-                        ClaimRecord::insert($batch);
-                        $totalInserted += count($batch);
-                        $batch = [];
-                    }
-                }
-
-                // Free worksheet memory
-                $spreadsheet->disconnectWorksheets();
-                unset($spreadsheet, $sheet);
-                gc_collect_cycles();
-            }
-
-            if (count($batch) > 0) {
-                ClaimRecord::insert($batch);
-                $totalInserted += count($batch);
-            }
-
-            Cache::forget('cost_report_data_ranap');
-            Cache::forget('cost_report_data_rajal');
-
-            return redirect()->route($jenisRawatSource === 'rajal' ? 'claim-records.rajal' : 'claim-records.ranap')
-                ->with('success', "Berhasil mengimpor {$totalInserted} data klaim.");
-        } catch (\Exception $e) {
-            return redirect()->route($jenisRawatSource === 'rajal' ? 'claim-records.rajal' : 'claim-records.ranap')
-                ->with('error', "Gagal mengimpor file: " . $e->getMessage());
-        }
+    /**
+     * Poll import job status (AJAX endpoint).
+     */
+    public function importStatus(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $jenisRawat = $request->query('jenis_rawat', 'ranap');
+        $status = Cache::get("import_status_{$jenisRawat}", ['status' => 'idle']);
+        return response()->json($status);
     }
 
     public function truncate(Request $request, $jenisRawat)
@@ -733,11 +643,7 @@ class ClaimRecordController extends Controller
 
         $selects = ["$monthExpr as month_key"];
         foreach ($fields as $field) {
-            if ($driver === 'pgsql') {
-                $selects[] = "SUM(COALESCE(CAST(raw_data->>'$field' AS NUMERIC), 0)) as " . strtolower($field);
-            } else {
-                $selects[] = "SUM(COALESCE(CAST(json_extract(raw_data, '$.$field') AS NUMERIC), 0)) as " . strtolower($field);
-            }
+            $selects[] = "SUM(COALESCE(" . strtolower($field) . ", 0)) as " . strtolower($field);
         }
 
         $cacheKey = "cost_report_data_{$jenisRawat}";
@@ -783,11 +689,7 @@ class ClaimRecordController extends Controller
 
         $selects = ["$monthExpr as month_key"];
         foreach ($fields as $field) {
-            if ($driver === 'pgsql') {
-                $selects[] = "SUM(COALESCE(CAST(raw_data->>'$field' AS NUMERIC), 0)) as " . strtolower($field);
-            } else {
-                $selects[] = "SUM(COALESCE(CAST(json_extract(raw_data, '$.$field') AS NUMERIC), 0)) as " . strtolower($field);
-            }
+            $selects[] = "SUM(COALESCE(" . strtolower($field) . ", 0)) as " . strtolower($field);
         }
 
         $cacheKey = "cost_report_data_{$jenisRawat}";

@@ -910,6 +910,52 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
           </div>
         @endif
+        @if(session('import_processing'))
+          <div id="import-processing-alert" class="alert alert-info alert-dismissible fade show d-flex align-items-center gap-3" role="alert" style="border-left: 4px solid #0d6efd;">
+            <div class="spinner-border spinner-border-sm text-primary flex-shrink-0" role="status"></div>
+            <div>
+              <strong>Sedang Memproses Import</strong><br>
+              <span class="small">{!! session('import_processing') !!}</span>
+            </div>
+            <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+          <script>
+            (function() {
+              // Determine jenis_rawat from current URL
+              const isRajal = window.location.pathname.includes('/rajal');
+              const jenisRawat = isRajal ? 'rajal' : 'ranap';
+              const statusUrl = '{{ route("claim-records.import-status") }}?jenis_rawat=' + jenisRawat;
+
+              const poll = setInterval(function() {
+                fetch(statusUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                  .then(r => r.json())
+                  .then(function(data) {
+                    if (data.status === 'done') {
+                      clearInterval(poll);
+                      const alert = document.getElementById('import-processing-alert');
+                      if (alert) {
+                        alert.className = 'alert alert-success fade show d-flex align-items-center gap-2';
+                        alert.innerHTML = '<i data-feather="check-circle" style="width:18px;height:18px;"></i>' +
+                          '<span><strong>Import selesai!</strong> ' + (data.total || '') + ' data berhasil diimpor. Halaman akan dimuat ulang...</span>';
+                        feather.replace();
+                      }
+                      setTimeout(function() { window.location.reload(); }, 2000);
+                    } else if (data.status === 'failed') {
+                      clearInterval(poll);
+                      const alert = document.getElementById('import-processing-alert');
+                      if (alert) {
+                        alert.className = 'alert alert-danger fade show d-flex align-items-center gap-2';
+                        alert.innerHTML = '<i data-feather="alert-circle" style="width:18px;height:18px;"></i>' +
+                          '<span><strong>Import gagal!</strong> ' + (data.error || 'Terjadi kesalahan.') + '</span>';
+                        feather.replace();
+                      }
+                    }
+                  })
+                  .catch(function() { /* network error, keep polling */ });
+              }, 5000);
+            })();
+          </script>
+        @endif
 
         @yield('content')
       </div>
@@ -933,6 +979,15 @@
     </div>
     <h5 class="text-white fw-bold mb-1" style="letter-spacing: 0.5px;">Mengekspor &amp; Mengunduh Data</h5>
     <p class="text-white text-opacity-75 small mb-0">Sedang memproses file Excel, mohon tunggu sebentar...</p>
+  </div>
+
+  <!-- Fullscreen Loading Overlay for Page Transition -->
+  <div id="page-loading-overlay" class="position-fixed top-0 start-0 w-100 h-100 d-none" style="background: rgba(11, 19, 43, 0.82); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center; flex-direction: column;">
+    <div class="spinner-border text-primary mb-3" role="status" style="width: 3.5rem; height: 3.5rem; border-width: 0.3em;">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <h5 class="text-white fw-bold mb-1" style="letter-spacing: 0.5px;">Memuat Halaman</h5>
+    <p class="text-white text-opacity-75 small mb-0">Mohon tunggu sebentar...</p>
   </div>
 
   <!-- Scripts -->
@@ -976,13 +1031,15 @@
       feather.replace();
     });
 
-    // Intercept clicks on links that contain '/export/'
+    // Intercept clicks on links that contain '/export/' or show page loading overlay on other transitions
     document.addEventListener('click', function (e) {
       const link = e.target.closest('a');
       if (!link) return;
       
       const href = link.getAttribute('href');
-      if (href && href.includes('/export/')) {
+      if (!href) return;
+
+      if (href.includes('/export/')) {
         // If it already has download_token, let the default behavior happen
         if (href.includes('download_token=')) {
           return;
@@ -1044,6 +1101,32 @@
             }, 1000);
           }
         }, 300);
+      } else if (
+        !href.startsWith('#') &&
+        !href.startsWith('javascript:') &&
+        !href.startsWith('tel:') &&
+        !href.startsWith('mailto:') &&
+        (!link.getAttribute('target') || link.getAttribute('target') === '_self') &&
+        !e.ctrlKey && !e.metaKey && !e.shiftKey && e.button === 0
+      ) {
+        // Show page transition loading overlay
+        const pageOverlay = document.getElementById('page-loading-overlay');
+        if (pageOverlay) {
+          pageOverlay.classList.remove('d-none');
+          pageOverlay.style.setProperty('display', 'flex', 'important');
+        }
+      }
+    });
+
+    // Show page transition loading overlay on form submit (e.g. imports)
+    document.addEventListener('submit', function (e) {
+      // Don't trigger if the form submission was prevented
+      if (e.defaultPrevented) return;
+      
+      const pageOverlay = document.getElementById('page-loading-overlay');
+      if (pageOverlay) {
+        pageOverlay.classList.remove('d-none');
+        pageOverlay.style.setProperty('display', 'flex', 'important');
       }
     });
   </script>

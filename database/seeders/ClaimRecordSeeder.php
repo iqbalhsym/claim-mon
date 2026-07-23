@@ -38,10 +38,17 @@ class ClaimRecordSeeder extends Seeder
 
         $highestCol = $sheet->getHighestColumn();
         $highestColIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestCol);
+
+        // Only track columns that actually have a header label
+        $actualHighestColIndex = 0;
         $headers = [];
         for ($col = 1; $col <= $highestColIndex; $col++) {
             $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
-            $headers[$colLetter] = trim($sheet->getCell($colLetter . '1')->getValue() ?? '');
+            $headerVal = trim($sheet->getCell($colLetter . '1')->getValue() ?? '');
+            if ($headerVal !== '') {
+                $headers[$colLetter] = $headerVal;
+                $actualHighestColIndex = $col;
+            }
         }
 
         for ($row = 2; $row <= $highestRow; $row++) {
@@ -68,12 +75,12 @@ class ClaimRecordSeeder extends Seeder
             $tarifRs = (float)($sheet->getCell('AN' . $row)->getValue() ?? 0);
             $selisih = $totalTarif - $tarifRs;
 
-            // Build raw data
+            // Build raw data using only columns up to actual highest header column
             $rawData = [];
-            for ($col = 1; $col <= $highestColIndex; $col++) {
+            for ($col = 1; $col <= $actualHighestColIndex; $col++) {
                 $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($col);
-                $headerName = $headers[$colLetter] ?? $colLetter;
-                if (!empty($headerName)) {
+                $headerName = $headers[$colLetter] ?? '';
+                if ($headerName !== '') {
                     $rawData[$headerName] = $sheet->getCell($colLetter . $row)->getValue();
                 }
             }
@@ -92,6 +99,24 @@ class ClaimRecordSeeder extends Seeder
                 'selisih' => $selisih,
                 'jenis_rawat' => ClaimRecord::parseJenisRawat($inacbg),
                 'raw_data' => json_encode($rawData),
+                'prosedur_non_bedah' => (float)($rawData['PROSEDUR_NON_BEDAH'] ?? 0),
+                'prosedur_bedah' => (float)($rawData['PROSEDUR_BEDAH'] ?? 0),
+                'konsultasi' => (float)($rawData['KONSULTASI'] ?? 0),
+                'tenaga_ahli' => (float)($rawData['TENAGA_AHLI'] ?? 0),
+                'keperawatan' => (float)($rawData['KEPERAWATAN'] ?? 0),
+                'penunjang' => (float)($rawData['PENUNJANG'] ?? 0),
+                'radiologi' => (float)($rawData['RADIOLOGI'] ?? 0),
+                'laboratorium' => (float)($rawData['LABORATORIUM'] ?? 0),
+                'pelayanan_darah' => (float)($rawData['PELAYANAN_DARAH'] ?? 0),
+                'rehabilitasi' => (float)($rawData['REHABILITASI'] ?? 0),
+                'kamar_akomodasi' => (float)($rawData['KAMAR_AKOMODASI'] ?? 0),
+                'rawat_intensif' => (float)($rawData['RAWAT_INTENSIF'] ?? 0),
+                'obat' => (float)($rawData['OBAT'] ?? 0),
+                'alkes' => (float)($rawData['ALKES'] ?? 0),
+                'bmhp' => (float)($rawData['BMHP'] ?? 0),
+                'sewa_alat' => (float)($rawData['SEWA_ALAT'] ?? 0),
+                'obat_kronis' => (float)($rawData['OBAT_KRONIS'] ?? 0),
+                'obat_kemo' => (float)($rawData['OBAT_KEMO'] ?? 0),
                 'created_at' => $now,
                 'updated_at' => $now,
             ];
