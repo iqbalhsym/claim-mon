@@ -791,6 +791,13 @@
               <span class="link-title">Komponen Biaya Ranap</span>
             </a>
           </li>
+          <li class="nav-item">
+            <a href="{{ route('claim-records.guarantor.ranap') }}"
+              class="nav-link {{ request()->routeIs('claim-records.guarantor.ranap') ? 'active' : '' }}">
+              <i class="link-icon" data-feather="shield"></i>
+              <span class="link-title">Rekapan Perpenjamin Ranap SIMRS</span>
+            </a>
+          </li>
 
           <li class="nav-category">Rawat Jalan (Rajal)</li>
           <li class="nav-item">
@@ -818,6 +825,13 @@
               class="nav-link {{ request()->routeIs('claim-records.cost.rajal') ? 'active' : '' }}">
               <i class="link-icon" data-feather="dollar-sign"></i>
               <span class="link-title">Komponen Biaya Rajal</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="{{ route('claim-records.guarantor.rajal') }}"
+              class="nav-link {{ request()->routeIs('claim-records.guarantor.rajal') ? 'active' : '' }}">
+              <i class="link-icon" data-feather="shield"></i>
+              <span class="link-title">Rekapan Perpenjamin Rajal SIMRS</span>
             </a>
           </li>
 

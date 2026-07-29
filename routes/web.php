@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ClaimRecordController;
+use App\Http\Controllers\BillingRecordController;
 
 /*
 |--------------------------------------------------------------------------
@@ -44,6 +45,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('cost-report/ranap', [ClaimRecordController::class, 'costReportRanap'])->name('claim-records.cost.ranap');
     Route::get('cost-report/rajal', [ClaimRecordController::class, 'costReportRajal'])->name('claim-records.cost.rajal');
     Route::get('cost-report/export/{jenis_rawat}', [ClaimRecordController::class, 'exportCostReport'])->name('claim-records.cost.export');
+
+    // --- LAPORAN REKAPAN PERPENJAMIN (BILLING) ---
+    Route::get('guarantor-report/ranap', [BillingRecordController::class, 'guarantorReportRanap'])->name('claim-records.guarantor.ranap');
+    Route::get('guarantor-report/rajal', [BillingRecordController::class, 'guarantorReportRajal'])->name('claim-records.guarantor.rajal');
+    Route::post('billing-records/import', [BillingRecordController::class, 'import'])->name('billing-records.import');
+    Route::delete('billing-records/truncate', [BillingRecordController::class, 'truncate'])->name('billing-records.truncate');
 
     // --- MANAJEMEN AKUN (Hanya Administrator) ---
     Route::middleware(['role:administrator'])->prefix('users')->name('users.')->group(function () {
