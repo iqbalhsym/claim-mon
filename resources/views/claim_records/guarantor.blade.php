@@ -241,10 +241,11 @@ function confirmDelete() {
     const select = document.getElementById('delete_month');
     const selectedText = select.options[select.selectedIndex].text;
     const val = select.value;
+    const label = "{{ $jenisRawat === 'ranap' ? 'rekapan perpenjamin ranap' : 'rekapan perpenjamin rajal' }}";
     if (val === 'all') {
-        return confirm('Apakah Anda yakin ingin menghapus SEMUA data klaim? Tindakan ini tidak dapat dibatalkan.');
+        return confirm('Apakah Anda yakin ingin menghapus SEMUA data ' + label + ' ? Tindakan ini tidak dapat dibatalkan.');
     } else {
-        return confirm('Apakah Anda yakin ingin menghapus data klaim untuk bulan ' + selectedText + '? Tindakan ini tidak dapat dibatalkan.');
+        return confirm('Apakah Anda yakin ingin menghapus data ' + label + ' untuk bulan ' + selectedText + '? Tindakan ini tidak dapat dibatalkan.');
     }
 }
 
