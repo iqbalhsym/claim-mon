@@ -57,6 +57,7 @@ class BillingRecordController extends Controller
         $stats = $query->select(
                 'guarantor',
                 DB::raw('COUNT(no_rm) as kunjungan'),
+                DB::raw('SUM(total_invoice_before_discount) as rill_billing'),
                 DB::raw('SUM(total_guarantee) as ajuan_klaim'),
                 DB::raw('SUM(total_payment) as dibayar_pasien'),
                 DB::raw('SUM(total_discount_per_item) as discount_rs'),

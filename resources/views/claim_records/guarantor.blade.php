@@ -156,9 +156,10 @@
             <th class="text-center">No</th>
             <th>Penjamin</th>
             <th class="text-center">Jumlah Kunjungan</th>
+            <th class="text-end">Rill Billing RSUI</th>
             <th class="text-end">Ajuan Klaim</th>
             <th class="text-end">Dibayar Pasien</th>
-            <th class="text-end">Discount RS</th>
+            <th class="text-end">Discount RSUI</th>
             <th class="text-end">Net Billing</th>
             <th class="text-end">Jasa RS</th>
             <th class="text-end">Jasa Pelayanan</th>
@@ -168,6 +169,7 @@
           @php
             $no = 1;
             $grandKunjungan = 0;
+            $grandRillBilling = 0;
             $grandAjuan = 0;
             $grandDibayar = 0;
             $grandDiscount = 0;
@@ -178,6 +180,7 @@
           @foreach($stats as $row)
             @php
               $grandKunjungan += $row->kunjungan;
+              $grandRillBilling += $row->rill_billing;
               $grandAjuan += $row->ajuan_klaim;
               $grandDibayar += $row->dibayar_pasien;
               $grandDiscount += $row->discount_rs;
@@ -189,6 +192,7 @@
               <td class="text-center">{{ $no++ }}</td>
               <td><b>{{ $row->guarantor ?: 'Tidak Terdaftar / Umum' }}</b></td>
               <td class="text-center font-weight-bold" data-order="{{ $row->kunjungan }}">{{ number_format($row->kunjungan) }}</td>
+              <td class="text-end" data-order="{{ $row->rill_billing }}">Rp {{ number_format($row->rill_billing, 0, ',', '.') }}</td>
               <td class="text-end" data-order="{{ $row->ajuan_klaim }}">Rp {{ number_format($row->ajuan_klaim, 0, ',', '.') }}</td>
               <td class="text-end" data-order="{{ $row->dibayar_pasien }}">Rp {{ number_format($row->dibayar_pasien, 0, ',', '.') }}</td>
               <td class="text-end" data-order="{{ $row->discount_rs }}">Rp {{ number_format($row->discount_rs, 0, ',', '.') }}</td>
@@ -202,6 +206,7 @@
           <tr>
             <td colspan="2" class="text-center">GRAND TOTAL</td>
             <td class="text-center">{{ number_format($grandKunjungan) }}</td>
+            <td class="text-end">Rp {{ number_format($grandRillBilling, 0, ',', '.') }}</td>
             <td class="text-end">Rp {{ number_format($grandAjuan, 0, ',', '.') }}</td>
             <td class="text-end">Rp {{ number_format($grandDibayar, 0, ',', '.') }}</td>
             <td class="text-end">Rp {{ number_format($grandDiscount, 0, ',', '.') }}</td>
@@ -263,7 +268,7 @@ $(document).ready(function() {
     "order": [[2, "desc"]],
     "columnDefs": [
       { "searchable": false, "orderable": false, "targets": 0 },
-      { "targets": [2, 3, 4, 5, 6, 7, 8], "orderable": true }
+      { "targets": [2, 3, 4, 5, 6, 7, 8, 9], "orderable": true }
     ]
   });
 
