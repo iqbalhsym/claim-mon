@@ -96,6 +96,16 @@ class ImportBillingRecordsJob implements ShouldQueue
 
             $treatmentType = isset($fieldMap['treatment_type']) && isset($cells[$fieldMap['treatment_type']]) ? strtolower(trim((string)$cells[$fieldMap['treatment_type']])) : '';
             
+            // Filter by Treatment Type if present in the Excel file
+            if ($treatmentType !== '') {
+                if ($this->jenisRawatSource === 'rajal' && !(str_contains($treatmentType, 'outpatient') || str_contains($treatmentType, 'rajal'))) {
+                    return; // Skip row if importing for Rajal but Treatment Type is not Outpatient/Rajal
+                }
+                if ($this->jenisRawatSource === 'ranap' && !(str_contains($treatmentType, 'inpatient') || str_contains($treatmentType, 'ranap'))) {
+                    return; // Skip row if importing for Ranap but Treatment Type is not Inpatient/Ranap
+                }
+            }
+            
             // Keep records strictly separated by the menu tab (ranap/rajal) where the user uploaded the file
             $jenisRawat = $this->jenisRawatSource;
 
