@@ -42,15 +42,11 @@ class BillingRecordController extends Controller
             ->pluck('month_key');
 
         $selectedMonth = $request->query('month');
-        if (!$selectedMonth && $availableMonths->count() > 0) {
-            // Default to the most recent month if no month selected
-            $selectedMonth = $availableMonths->first();
-        }
 
         // Query stats per guarantor
         $query = BillingRecord::where('jenis_rawat', $jenisRawat);
 
-        if ($selectedMonth) {
+        if (!empty($selectedMonth)) {
             $query->whereRaw("$monthExpr = ?", [$selectedMonth]);
         }
 
