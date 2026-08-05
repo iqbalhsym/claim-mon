@@ -552,6 +552,7 @@ document.addEventListener('DOMContentLoaded', function () {
       maintainAspectRatio: false,
       plugins: {
         legend: {
+          display: jenisRawat !== 'rajal',
           position: 'top',
           labels: { color: labelColor, font: { family: 'Roboto' } }
         }
@@ -622,6 +623,7 @@ document.addEventListener('DOMContentLoaded', function () {
       maintainAspectRatio: false,
       plugins: {
         legend: {
+          display: jenisRawat !== 'rajal',
           position: 'top',
           labels: { color: labelColor, font: { family: 'Roboto' } }
         },
