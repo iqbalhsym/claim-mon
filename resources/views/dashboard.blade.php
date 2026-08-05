@@ -254,84 +254,120 @@
   </div>
 @endif
 
-{{-- ===== ROW 2.6: TOP 20 DESKRIPSI INACBGS ===== --}}
+{{-- ===== ROW 2.6: TOP 20 DESKRIPSI INACBGS PER MONTH (METODE 2) ===== --}}
 <div class="row g-3 mb-4 fade-in-up" style="animation-delay:330ms">
   <div class="col-12">
     <div class="card shadow-sm border-0">
       <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
           <div class="section-title mb-0">
-            <i data-feather="list" class="text-primary me-1"></i> 20 DESKRIPSI INACBGS
+            <i data-feather="list" class="text-primary me-1"></i> 20 DESKRIPSI INACBGS (Per Bulan)
           </div>
-          <span class="badge bg-primary bg-opacity-10 text-primary fw-semibold px-2.5 py-1.5" style="font-size: 0.75rem;">
-            Top 20 Kasus Terbanyak ({{ $jenisRawat === 'ranap' ? 'Ranap' : 'Rajal' }})
-          </span>
+          
+          <!-- Month Selector Tabs -->
+          @if(count($monthlyTop20) > 0)
+            <ul class="nav nav-pills nav-sm gap-1" id="inacbgMonthTabs" role="tablist">
+              @php $firstMonth = true; @endphp
+              @foreach($monthlyTop20 as $mKey => $mGroup)
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link py-1 px-3 fs-7 {{ $firstMonth ? 'active' : '' }}" 
+                          id="inacbg-tab-{{ $mKey }}" 
+                          data-bs-toggle="tab" 
+                          data-bs-target="#inacbg-panel-{{ $mKey }}" 
+                          type="button" role="tab" 
+                          aria-controls="inacbg-panel-{{ $mKey }}" 
+                          aria-selected="{{ $firstMonth ? 'true' : 'false' }}">
+                    <i data-feather="calendar" style="width: 13px; height: 13px;" class="me-1"></i> {{ $mGroup['month_label'] }}
+                  </button>
+                </li>
+                @php $firstMonth = false; @endphp
+              @endforeach
+            </ul>
+          @endif
         </div>
-        
-        <div class="table-responsive" style="max-height: 550px; overflow-y: auto;">
-          <table class="table table-sm table-hover table-striped mb-0 align-middle">
-            <thead class="table-light sticky-top" style="z-index: 1;">
-              <tr>
-                <th class="text-center py-2" style="width: 50px;">No</th>
-                <th class="py-2" style="width: 150px;">Kode INACBG</th>
-                <th class="py-2">Deskripsi Penyakit / INACBG</th>
-                <th class="text-center py-2" style="width: 180px;">Tingkatan Keparahan</th>
-                <th class="text-center py-2" style="width: 140px;">Jumlah Kasus</th>
-              </tr>
-            </thead>
-            <tbody>
-              @forelse($top20Inacbg as $index => $item)
-                @php
-                  $sev = strtoupper(trim($item->severity ?? ''));
-                  if (empty($sev) || $sev === 'UNKNOWN') {
-                      $sev = \App\Models\ClaimRecord::parseSeverity($item->inacbg);
-                  }
-                  
-                  $badgeClass = 'bg-secondary bg-opacity-10 text-secondary';
-                  $labelSev = 'Level ' . $sev;
-                  
-                  if ($sev === 'I') {
-                      $badgeClass = 'bg-success bg-opacity-10 text-success border border-success border-opacity-25';
-                      $labelSev = 'Ringan (Level I)';
-                  } elseif ($sev === 'II') {
-                      $badgeClass = 'bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25';
-                      $labelSev = 'Sedang (Level II)';
-                  } elseif ($sev === 'III') {
-                      $badgeClass = 'bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25';
-                      $labelSev = 'Berat (Level III)';
-                  } elseif ($sev === '0') {
-                      $badgeClass = 'bg-info bg-opacity-10 text-info border border-info border-opacity-25';
-                      $labelSev = 'Rawat Jalan (Level 0)';
-                  }
-                @endphp
-                <tr>
-                  <td class="text-center fw-bold text-muted">{{ $index + 1 }}</td>
-                  <td>
-                    <span class="font-monospace fw-bold text-dark px-2 py-0.5 rounded bg-light border">
-                      {{ $item->inacbg ?: '-' }}
-                    </span>
-                  </td>
-                  <td>
-                    <div class="fw-semibold text-dark">{{ $item->deskripsi ?: $item->inacbg }}</div>
-                  </td>
-                  <td class="text-center">
-                    <span class="badge {{ $badgeClass }} px-2.5 py-1 rounded-pill fw-bold" style="font-size: 0.76rem;">
-                      {{ $labelSev }}
-                    </span>
-                  </td>
-                  <td class="text-center">
-                    <span class="badge bg-primary text-white fw-bold px-2.5 py-1 rounded-pill">
-                      {{ number_format($item->total_kasus) }} Pasien
-                    </span>
-                  </td>
-                </tr>
-              @empty
-                <tr>
-                  <td colspan="5" class="text-center text-muted py-4">Belum ada data Deskripsi INACBG yang terdaftar.</td>
-                </tr>
-              @endforelse
-            </tbody>
-          </table>
+
+        <div class="tab-content" id="inacbgMonthTabsContent">
+          @php $firstPanel = true; @endphp
+          @forelse($monthlyTop20 as $mKey => $mGroup)
+            <div class="tab-pane fade {{ $firstPanel ? 'show active' : '' }}" 
+                 id="inacbg-panel-{{ $mKey }}" 
+                 role="tabpanel" 
+                 aria-labelledby="inacbg-tab-{{ $mKey }}">
+              
+              <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+                <small class="text-muted fw-semibold">
+                  Menampilkan Top 20 Penyakit Terbanyak murni bulan: <b class="text-dark">{{ $mGroup['month_label'] }}</b>
+                </small>
+              </div>
+
+              <div class="table-responsive" style="max-height: 550px; overflow-y: auto;">
+                <table class="table table-sm table-hover table-striped mb-0 align-middle">
+                  <thead class="table-light sticky-top" style="z-index: 1;">
+                    <tr>
+                      <th class="text-center py-2" style="width: 55px;">No</th>
+                      <th class="py-2">Nama Penyakit / Diagnosa INACBG</th>
+                      <th class="text-center py-2" style="width: 160px;">🟢 Ringan (Level I)</th>
+                      <th class="text-center py-2" style="width: 160px;">🟡 Sedang (Level II)</th>
+                      <th class="text-center py-2" style="width: 160px;">🔴 Berat (Level III)</th>
+                      <th class="text-center py-2" style="width: 140px;">📊 Total Kasus</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @forelse($mGroup['items'] as $index => $item)
+                      <tr>
+                        <td class="text-center fw-bold text-muted">{{ $index + 1 }}</td>
+                        <td>
+                          <div class="fw-semibold text-dark">{{ $item['disease'] }}</div>
+                        </td>
+                        <td class="text-center">
+                          @if($item['ringan'] > 0)
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2.5 py-1 rounded-pill fw-bold">
+                              {{ number_format($item['ringan']) }}
+                            </span>
+                          @else
+                            <span class="text-muted">-</span>
+                          @endif
+                        </td>
+                        <td class="text-center">
+                          @if($item['sedang'] > 0)
+                            <span class="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25 px-2.5 py-1 rounded-pill fw-bold">
+                              {{ number_format($item['sedang']) }}
+                            </span>
+                          @else
+                            <span class="text-muted">-</span>
+                          @endif
+                        </td>
+                        <td class="text-center">
+                          @if($item['berat'] > 0)
+                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2.5 py-1 rounded-pill fw-bold">
+                              {{ number_format($item['berat']) }}
+                            </span>
+                          @else
+                            <span class="text-muted">-</span>
+                          @endif
+                        </td>
+                        <td class="text-center">
+                          <span class="badge bg-primary text-white fw-bold px-2.5 py-1 rounded-pill">
+                            {{ number_format($item['total']) }} Pasien
+                          </span>
+                        </td>
+                      </tr>
+                    @empty
+                      <tr>
+                        <td colspan="6" class="text-center text-muted py-4">Belum ada data Deskripsi INACBG pada bulan {{ $mGroup['month_label'] }}.</td>
+                      </tr>
+                    @endforelse
+                  </tbody>
+                </table>
+              </div>
+
+            </div>
+            @php $firstPanel = false; @endphp
+          @empty
+            <div class="text-center text-muted py-5">
+              Belum ada data Deskripsi INACBG yang terdaftar.
+            </div>
+          @endforelse
         </div>
       </div>
     </div>

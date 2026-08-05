@@ -210,7 +210,7 @@ class DashboardController extends Controller
             ];
         }
 
-        // Top 20 DESKRIPSI INACBGS
+        // Top 20 DESKRIPSI INACBGS per Month (Metode 2: Terpisah Per Bulan)
         $driver = DB::connection()->getDriverName();
         if ($driver === 'pgsql') {
             $deskripsiExpr = "COALESCE(NULLIF(raw_data->>'DESKRIPSI_INACBG', ''), NULLIF(raw_data->>'deskripsi_inacbg', ''), inacbg)";
@@ -218,19 +218,82 @@ class DashboardController extends Controller
             $deskripsiExpr = "COALESCE(NULLIF(json_extract(raw_data, '$.DESKRIPSI_INACBG'), ''), NULLIF(json_extract(raw_data, '$.deskripsi_inacbg'), ''), inacbg)";
         }
 
-        $top20Inacbg = (clone $baseQuery)
+        $allInacbgRecords = (clone $baseQuery)
             ->selectRaw("
+                $monthExpr as month_key,
                 $deskripsiExpr as deskripsi,
                 inacbg,
                 severity,
-                count(*) as total_kasus
+                count(*) as total
             ")
+            ->whereNotNull('discharge_date')
             ->whereNotNull('inacbg')
             ->where('inacbg', '!=', '')
-            ->groupBy('deskripsi', 'inacbg', 'severity')
-            ->orderByDesc('total_kasus')
-            ->limit(20)
+            ->groupBy('month_key', 'deskripsi', 'inacbg', 'severity')
             ->get();
+
+        $monthlyTop20 = [];
+        $groupedByMonthDisease = [];
+
+        foreach ($allInacbgRecords as $rec) {
+            $mKey = $rec->month_key;
+            if (!$mKey) continue;
+
+            $rawDesc = trim((string)$rec->deskripsi);
+            // Clean (RINGAN), (SEDANG), (BERAT), (LEVEL I), (I) etc.
+            $cleanDisease = trim(preg_replace('/\s*\((RINGAN|SEDANG|BERAT|LEVEL\s*(I|II|III|0)|I|II|III|0)\)/i', '', $rawDesc));
+            if (empty($cleanDisease)) {
+                $cleanDisease = $rec->inacbg ?: 'Lainnya';
+            }
+
+            $sev = strtoupper(trim((string)$rec->severity));
+            if (empty($sev) || $sev === 'UNKNOWN') {
+                $sev = ClaimRecord::parseSeverity($rec->inacbg);
+            }
+
+            if (!isset($groupedByMonthDisease[$mKey][$cleanDisease])) {
+                $groupedByMonthDisease[$mKey][$cleanDisease] = [
+                    'disease' => $cleanDisease,
+                    'ringan'  => 0,
+                    'sedang'  => 0,
+                    'berat'   => 0,
+                    'rajal'   => 0,
+                    'total'   => 0,
+                ];
+            }
+
+            $count = (int)$rec->total;
+            $groupedByMonthDisease[$mKey][$cleanDisease]['total'] += $count;
+
+            if ($sev === 'I') {
+                $groupedByMonthDisease[$mKey][$cleanDisease]['ringan'] += $count;
+            } elseif ($sev === 'II') {
+                $groupedByMonthDisease[$mKey][$cleanDisease]['sedang'] += $count;
+            } elseif ($sev === 'III') {
+                $groupedByMonthDisease[$mKey][$cleanDisease]['berat'] += $count;
+            } else {
+                $groupedByMonthDisease[$mKey][$cleanDisease]['rajal'] += $count;
+            }
+        }
+
+        krsort($groupedByMonthDisease);
+
+        foreach ($groupedByMonthDisease as $mKey => $diseases) {
+            try {
+                $carbonDate = Carbon::createFromFormat('Y-m', $mKey);
+                $monthLabel = $carbonDate->translatedFormat('F Y');
+            } catch (\Exception $e) {
+                $monthLabel = $mKey;
+            }
+
+            $topItems = collect($diseases)->sortByDesc('total')->take(20)->values()->toArray();
+
+            $monthlyTop20[$mKey] = [
+                'month_key'   => $mKey,
+                'month_label' => $monthLabel,
+                'items'       => $topItems,
+            ];
+        }
 
         return view('dashboard', compact(
             'totalRecord',
@@ -246,7 +309,7 @@ class DashboardController extends Controller
             'endDate',
             'jenisRawat',
             'topInacbgData',
-            'top20Inacbg'
+            'monthlyTop20'
         ));
     }
 
