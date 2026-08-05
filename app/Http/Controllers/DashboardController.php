@@ -210,6 +210,28 @@ class DashboardController extends Controller
             ];
         }
 
+        // Top 20 DESKRIPSI INACBGS
+        $driver = DB::connection()->getDriverName();
+        if ($driver === 'pgsql') {
+            $deskripsiExpr = "COALESCE(NULLIF(raw_data->>'DESKRIPSI_INACBG', ''), NULLIF(raw_data->>'deskripsi_inacbg', ''), inacbg)";
+        } else {
+            $deskripsiExpr = "COALESCE(NULLIF(json_extract(raw_data, '$.DESKRIPSI_INACBG'), ''), NULLIF(json_extract(raw_data, '$.deskripsi_inacbg'), ''), inacbg)";
+        }
+
+        $top20Inacbg = (clone $baseQuery)
+            ->selectRaw("
+                $deskripsiExpr as deskripsi,
+                inacbg,
+                severity,
+                count(*) as total_kasus
+            ")
+            ->whereNotNull('inacbg')
+            ->where('inacbg', '!=', '')
+            ->groupBy('deskripsi', 'inacbg', 'severity')
+            ->orderByDesc('total_kasus')
+            ->limit(20)
+            ->get();
+
         return view('dashboard', compact(
             'totalRecord',
             'totalTotalTarif',
@@ -223,7 +245,8 @@ class DashboardController extends Controller
             'startDate',
             'endDate',
             'jenisRawat',
-            'topInacbgData'
+            'topInacbgData',
+            'top20Inacbg'
         ));
     }
 

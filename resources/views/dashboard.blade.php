@@ -254,6 +254,90 @@
   </div>
 @endif
 
+{{-- ===== ROW 2.6: TOP 20 DESKRIPSI INACBGS ===== --}}
+<div class="row g-3 mb-4 fade-in-up" style="animation-delay:330ms">
+  <div class="col-12">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div class="section-title mb-0">
+            <i data-feather="list" class="text-primary me-1"></i> 20 DESKRIPSI INACBGS
+          </div>
+          <span class="badge bg-primary bg-opacity-10 text-primary fw-semibold px-2.5 py-1.5" style="font-size: 0.75rem;">
+            Top 20 Kasus Terbanyak ({{ $jenisRawat === 'ranap' ? 'Ranap' : 'Rajal' }})
+          </span>
+        </div>
+        
+        <div class="table-responsive" style="max-height: 550px; overflow-y: auto;">
+          <table class="table table-sm table-hover table-striped mb-0 align-middle">
+            <thead class="table-light sticky-top" style="z-index: 1;">
+              <tr>
+                <th class="text-center py-2" style="width: 50px;">No</th>
+                <th class="py-2" style="width: 150px;">Kode INACBG</th>
+                <th class="py-2">Deskripsi Penyakit / INACBG</th>
+                <th class="text-center py-2" style="width: 180px;">Tingkatan Keparahan</th>
+                <th class="text-center py-2" style="width: 140px;">Jumlah Kasus</th>
+              </tr>
+            </thead>
+            <tbody>
+              @forelse($top20Inacbg as $index => $item)
+                @php
+                  $sev = strtoupper(trim($item->severity ?? ''));
+                  if (empty($sev) || $sev === 'UNKNOWN') {
+                      $sev = \App\Models\ClaimRecord::parseSeverity($item->inacbg);
+                  }
+                  
+                  $badgeClass = 'bg-secondary bg-opacity-10 text-secondary';
+                  $labelSev = 'Level ' . $sev;
+                  
+                  if ($sev === 'I') {
+                      $badgeClass = 'bg-success bg-opacity-10 text-success border border-success border-opacity-25';
+                      $labelSev = 'Ringan (Level I)';
+                  } elseif ($sev === 'II') {
+                      $badgeClass = 'bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25';
+                      $labelSev = 'Sedang (Level II)';
+                  } elseif ($sev === 'III') {
+                      $badgeClass = 'bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25';
+                      $labelSev = 'Berat (Level III)';
+                  } elseif ($sev === '0') {
+                      $badgeClass = 'bg-info bg-opacity-10 text-info border border-info border-opacity-25';
+                      $labelSev = 'Rawat Jalan (Level 0)';
+                  }
+                @endphp
+                <tr>
+                  <td class="text-center fw-bold text-muted">{{ $index + 1 }}</td>
+                  <td>
+                    <span class="font-monospace fw-bold text-dark px-2 py-0.5 rounded bg-light border">
+                      {{ $item->inacbg ?: '-' }}
+                    </span>
+                  </td>
+                  <td>
+                    <div class="fw-semibold text-dark">{{ $item->deskripsi ?: $item->inacbg }}</div>
+                  </td>
+                  <td class="text-center">
+                    <span class="badge {{ $badgeClass }} px-2.5 py-1 rounded-pill fw-bold" style="font-size: 0.76rem;">
+                      {{ $labelSev }}
+                    </span>
+                  </td>
+                  <td class="text-center">
+                    <span class="badge bg-primary text-white fw-bold px-2.5 py-1 rounded-pill">
+                      {{ number_format($item->total_kasus) }} Pasien
+                    </span>
+                  </td>
+                </tr>
+              @empty
+                <tr>
+                  <td colspan="5" class="text-center text-muted py-4">Belum ada data Deskripsi INACBG yang terdaftar.</td>
+                </tr>
+              @endforelse
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 {{-- ===== ROW 3: TOP DOCTORS & RECENT CLAIMS ===== --}}
 <div class="row g-3 mb-4">
   {{-- Top Doctors --}}
