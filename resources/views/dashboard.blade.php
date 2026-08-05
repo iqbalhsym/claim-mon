@@ -212,7 +212,7 @@
     <div class="card h-100">
       <div class="card-body">
         <div class="section-title">
-          <i data-feather="bar-chart-2"></i> Jumlah Kasus Severity per Bulan
+          <i data-feather="bar-chart-2"></i> {{ $jenisRawat === 'rajal' ? 'Jumlah Pasien per Bulan' : 'Jumlah Kasus Severity per Bulan' }}
         </div>
         <div style="position: relative; height: 320px;">
           <canvas id="severityCountChart"></canvas>
@@ -226,7 +226,7 @@
     <div class="card h-100">
       <div class="card-body">
         <div class="section-title">
-          <i data-feather="percent"></i> Persentase Kasus Severity per Bulan
+          <i data-feather="percent"></i> {{ $jenisRawat === 'rajal' ? 'Persentase Jumlah Pasien per Bulan' : 'Persentase Kasus Severity per Bulan' }}
         </div>
         <div style="position: relative; height: 320px;">
           <canvas id="severityPercentChart"></canvas>
