@@ -264,39 +264,26 @@
             <i data-feather="list" class="text-primary me-1"></i> 20 DESKRIPSI INACBGS (Per Bulan)
           </div>
           
-          <!-- Month Selector Buttons -->
+          <!-- Month Selector Dropdown -->
           @if(count($monthlyTop20) > 0)
             <div class="d-flex align-items-center gap-2">
-              <span class="small text-muted fw-semibold me-1"><i data-feather="calendar" style="width:14px;height:14px;" class="me-1"></i>Pilih Bulan:</span>
-              <ul class="nav nav-pills border rounded p-1 bg-light" id="inacbgMonthTabs" role="tablist" style="gap: 4px;">
-                @php $firstMonth = true; @endphp
+              <label for="inacbgMonthSelect" class="small text-muted fw-semibold mb-0">
+                <i data-feather="calendar" style="width:14px;height:14px;" class="me-1"></i>Pilih Bulan:
+              </label>
+              <select id="inacbgMonthSelect" class="form-select form-select-sm fw-semibold" style="width: 200px;" onchange="switchInacbgMonth(this.value)">
                 @foreach($monthlyTop20 as $mKey => $mGroup)
-                  <li class="nav-item" role="presentation">
-                    <button class="nav-link py-1 px-3 fs-7 fw-semibold {{ $firstMonth ? 'active bg-primary text-white shadow-sm' : 'text-secondary bg-transparent' }}" 
-                            id="inacbg-tab-{{ $mKey }}" 
-                            data-bs-toggle="tab" 
-                            data-bs-target="#inacbg-panel-{{ $mKey }}" 
-                            type="button" role="tab" 
-                            aria-controls="inacbg-panel-{{ $mKey }}" 
-                            aria-selected="{{ $firstMonth ? 'true' : 'false' }}"
-                            style="border-radius: 4px; transition: all 0.2s;">
-                      {{ $mGroup['month_label'] }}
-                    </button>
-                  </li>
-                  @php $firstMonth = false; @endphp
+                  <option value="{{ $mKey }}">{{ $mGroup['month_label'] }}</option>
                 @endforeach
-              </ul>
+              </select>
             </div>
           @endif
         </div>
 
-        <div class="tab-content" id="inacbgMonthTabsContent">
+        <div class="inacbg-month-panels-wrapper">
           @php $firstPanel = true; @endphp
           @forelse($monthlyTop20 as $mKey => $mGroup)
-            <div class="tab-pane fade {{ $firstPanel ? 'show active' : '' }}" 
-                 id="inacbg-panel-{{ $mKey }}" 
-                 role="tabpanel" 
-                 aria-labelledby="inacbg-tab-{{ $mKey }}">
+            <div class="inacbg-month-pane {{ $firstPanel ? '' : 'd-none' }}" 
+                 id="inacbg-panel-{{ $mKey }}">
               
               <div class="d-flex justify-content-between align-items-center mb-2 px-1">
                 <small class="text-muted fw-semibold">
@@ -715,5 +702,15 @@ document.addEventListener('DOMContentLoaded', function () {
   });
   @endif
 });
+
+function switchInacbgMonth(selectedKey) {
+    document.querySelectorAll('.inacbg-month-pane').forEach(function(pane) {
+        pane.classList.add('d-none');
+    });
+    const target = document.getElementById('inacbg-panel-' + selectedKey);
+    if (target) {
+        target.classList.remove('d-none');
+    }
+}
 </script>
 @endsection
