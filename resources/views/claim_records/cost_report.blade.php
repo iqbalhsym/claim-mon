@@ -111,8 +111,9 @@
         </tbody>
         @if(count($stats) > 0)
           <tfoot>
+            <!-- Row 1: Total Tarif RS -->
             <tr class="totals-row">
-              <td class="bg-light"><b>Total</b></td>
+              <td class="bg-light"><b>Total Tarif RS</b></td>
               @foreach($stats as $row)
                 @php
                   $val = $monthTotals[$row->month_key] ?? 0;
@@ -123,6 +124,47 @@
               @endforeach
               <td class="text-end bg-primary text-white fw-bold">
                 Rp {{ number_format($grandTotal, 0, ',', '.') }}
+              </td>
+            </tr>
+
+            <!-- Row 2: Total Tarif INACBG -->
+            @php
+              $grandTotalInacbg = 0;
+            @endphp
+            <tr class="totals-row">
+              <td class="bg-light"><b>Total Tarif INACBG</b></td>
+              @foreach($stats as $row)
+                @php
+                  $inacbg = (float)($row->total_tarif_inacbg ?? 0);
+                  $grandTotalInacbg += $inacbg;
+                @endphp
+                <td class="text-end text-info fw-bold">
+                  Rp {{ number_format($inacbg, 0, ',', '.') }}
+                </td>
+              @endforeach
+              <td class="text-end bg-info text-white fw-bold">
+                Rp {{ number_format($grandTotalInacbg, 0, ',', '.') }}
+              </td>
+            </tr>
+
+            <!-- Row 3: BALANCE POSITIF NEGATIF -->
+            @php
+              $grandBalance = $grandTotal - $grandTotalInacbg;
+            @endphp
+            <tr class="totals-row">
+              <td class="bg-light"><b>BALANCE POSITIF NEGATIF</b></td>
+              @foreach($stats as $row)
+                @php
+                  $tarifRS = $monthTotals[$row->month_key] ?? 0;
+                  $inacbg = (float)($row->total_tarif_inacbg ?? 0);
+                  $balance = $tarifRS - $inacbg;
+                @endphp
+                <td class="text-end fw-bold {{ $balance >= 0 ? 'text-success' : 'text-danger' }}">
+                  Rp {{ number_format($balance, 0, ',', '.') }}
+                </td>
+              @endforeach
+              <td class="text-end fw-bold {{ $grandBalance >= 0 ? 'bg-success' : 'bg-danger' }} text-white">
+                Rp {{ number_format($grandBalance, 0, ',', '.') }}
               </td>
             </tr>
           </tfoot>

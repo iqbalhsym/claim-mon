@@ -634,12 +634,15 @@ class ClaimRecordController extends Controller
             'BMHP', 'SEWA_ALAT', 'OBAT_KRONIS', 'OBAT_KEMO'
         ];
 
-        $selects = ["$monthExpr as month_key"];
+        $selects = [
+            "$monthExpr as month_key",
+            "SUM(COALESCE(total_tarif, 0)) as total_tarif_inacbg"
+        ];
         foreach ($fields as $field) {
             $selects[] = "SUM(COALESCE(" . strtolower($field) . ", 0)) as " . strtolower($field);
         }
 
-        $cacheKey = "cost_report_data_{$jenisRawat}";
+        $cacheKey = "cost_report_data_v2_{$jenisRawat}";
         $data = Cache::rememberForever($cacheKey, function () use ($jenisRawat, $selects, $fields) {
             $stats = ClaimRecord::where('jenis_rawat', $jenisRawat)
                 ->whereNotNull('discharge_date')
@@ -653,6 +656,7 @@ class ClaimRecordController extends Controller
                 $key = strtolower($field);
                 $totals[$key] = $stats->sum($key);
             }
+            $totals['total_tarif_inacbg'] = $stats->sum('total_tarif_inacbg');
 
             return [
                 'stats' => $stats,
@@ -680,12 +684,16 @@ class ClaimRecordController extends Controller
             'BMHP', 'SEWA_ALAT', 'OBAT_KRONIS', 'OBAT_KEMO'
         ];
 
-        $selects = ["$monthExpr as month_key"];
+        // Selects & Cache
+        $selects = [
+            "$monthExpr as month_key",
+            "SUM(COALESCE(total_tarif, 0)) as total_tarif_inacbg"
+        ];
         foreach ($fields as $field) {
             $selects[] = "SUM(COALESCE(" . strtolower($field) . ", 0)) as " . strtolower($field);
         }
 
-        $cacheKey = "cost_report_data_{$jenisRawat}";
+        $cacheKey = "cost_report_data_v2_{$jenisRawat}";
         $data = Cache::rememberForever($cacheKey, function () use ($jenisRawat, $selects, $fields) {
             $stats = ClaimRecord::where('jenis_rawat', $jenisRawat)
                 ->whereNotNull('discharge_date')
@@ -699,6 +707,7 @@ class ClaimRecordController extends Controller
                 $key = strtolower($field);
                 $totals[$key] = $stats->sum($key);
             }
+            $totals['total_tarif_inacbg'] = $stats->sum('total_tarif_inacbg');
 
             return [
                 'stats' => $stats,
@@ -772,8 +781,8 @@ class ClaimRecordController extends Controller
             $rowNum++;
         }
 
-        // Totals Row at the bottom
-        $sheet->setCellValue('A' . $rowNum, 'Total');
+        // Row 1: Total Tarif RS
+        $sheet->setCellValue('A' . $rowNum, 'Total Tarif RS');
         $sheet->getStyle('A' . $rowNum)->getFont()->setBold(true);
 
         $colIdx = 2;
@@ -785,9 +794,49 @@ class ClaimRecordController extends Controller
             $colIdx++;
         }
 
-        // Grand Total cell
         $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($totalColIdx);
         $sheet->setCellValue($colLetter . $rowNum, $grandTotal);
+        $sheet->getStyle($colLetter . $rowNum)->getFont()->setBold(true);
+        $rowNum++;
+
+        // Row 2: Total Tarif INACBG
+        $sheet->setCellValue('A' . $rowNum, 'Total Tarif INACBG');
+        $sheet->getStyle('A' . $rowNum)->getFont()->setBold(true);
+
+        $colIdx = 2;
+        $grandTotalInacbg = 0;
+        foreach ($stats as $row) {
+            $val = (float)($row->total_tarif_inacbg ?? 0);
+            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIdx);
+            $sheet->setCellValue($colLetter . $rowNum, $val);
+            $sheet->getStyle($colLetter . $rowNum)->getFont()->setBold(true);
+            $grandTotalInacbg += $val;
+            $colIdx++;
+        }
+
+        $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($totalColIdx);
+        $sheet->setCellValue($colLetter . $rowNum, $grandTotalInacbg);
+        $sheet->getStyle($colLetter . $rowNum)->getFont()->setBold(true);
+        $rowNum++;
+
+        // Row 3: BALANCE POSITIF NEGATIF
+        $sheet->setCellValue('A' . $rowNum, 'BALANCE POSITIF NEGATIF');
+        $sheet->getStyle('A' . $rowNum)->getFont()->setBold(true);
+
+        $colIdx = 2;
+        foreach ($stats as $row) {
+            $tarifRS = $monthTotals[$colIdx] ?? 0;
+            $inacbg = (float)($row->total_tarif_inacbg ?? 0);
+            $balance = $tarifRS - $inacbg;
+            $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIdx);
+            $sheet->setCellValue($colLetter . $rowNum, $balance);
+            $sheet->getStyle($colLetter . $rowNum)->getFont()->setBold(true);
+            $colIdx++;
+        }
+
+        $grandBalance = $grandTotal - $grandTotalInacbg;
+        $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($totalColIdx);
+        $sheet->setCellValue($colLetter . $rowNum, $grandBalance);
         $sheet->getStyle($colLetter . $rowNum)->getFont()->setBold(true);
 
         // Auto-size columns
