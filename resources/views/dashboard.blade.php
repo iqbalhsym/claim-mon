@@ -259,30 +259,34 @@
   <div class="col-12">
     <div class="card shadow-sm border-0">
       <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-          <div class="section-title mb-0">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3 border-bottom pb-3">
+          <div class="section-title mb-0 fw-bold">
             <i data-feather="list" class="text-primary me-1"></i> 20 DESKRIPSI INACBGS (Per Bulan)
           </div>
           
-          <!-- Month Selector Tabs -->
+          <!-- Month Selector Buttons -->
           @if(count($monthlyTop20) > 0)
-            <ul class="nav nav-pills nav-sm gap-1" id="inacbgMonthTabs" role="tablist">
-              @php $firstMonth = true; @endphp
-              @foreach($monthlyTop20 as $mKey => $mGroup)
-                <li class="nav-item" role="presentation">
-                  <button class="nav-link py-1 px-3 fs-7 {{ $firstMonth ? 'active' : '' }}" 
-                          id="inacbg-tab-{{ $mKey }}" 
-                          data-bs-toggle="tab" 
-                          data-bs-target="#inacbg-panel-{{ $mKey }}" 
-                          type="button" role="tab" 
-                          aria-controls="inacbg-panel-{{ $mKey }}" 
-                          aria-selected="{{ $firstMonth ? 'true' : 'false' }}">
-                    <i data-feather="calendar" style="width: 13px; height: 13px;" class="me-1"></i> {{ $mGroup['month_label'] }}
-                  </button>
-                </li>
-                @php $firstMonth = false; @endphp
-              @endforeach
-            </ul>
+            <div class="d-flex align-items-center gap-2">
+              <span class="small text-muted fw-semibold me-1"><i data-feather="calendar" style="width:14px;height:14px;" class="me-1"></i>Pilih Bulan:</span>
+              <ul class="nav nav-pills border rounded p-1 bg-light" id="inacbgMonthTabs" role="tablist" style="gap: 4px;">
+                @php $firstMonth = true; @endphp
+                @foreach($monthlyTop20 as $mKey => $mGroup)
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link py-1 px-3 fs-7 fw-semibold {{ $firstMonth ? 'active bg-primary text-white shadow-sm' : 'text-secondary bg-transparent' }}" 
+                            id="inacbg-tab-{{ $mKey }}" 
+                            data-bs-toggle="tab" 
+                            data-bs-target="#inacbg-panel-{{ $mKey }}" 
+                            type="button" role="tab" 
+                            aria-controls="inacbg-panel-{{ $mKey }}" 
+                            aria-selected="{{ $firstMonth ? 'true' : 'false' }}"
+                            style="border-radius: 4px; transition: all 0.2s;">
+                      {{ $mGroup['month_label'] }}
+                    </button>
+                  </li>
+                  @php $firstMonth = false; @endphp
+                @endforeach
+              </ul>
+            </div>
           @endif
         </div>
 
@@ -296,7 +300,7 @@
               
               <div class="d-flex justify-content-between align-items-center mb-2 px-1">
                 <small class="text-muted fw-semibold">
-                  Menampilkan Top 20 Penyakit Terbanyak murni bulan: <b class="text-dark">{{ $mGroup['month_label'] }}</b>
+                  Menampilkan Top 20 Penyakit Terbanyak bulan: <b class="text-dark">{{ $mGroup['month_label'] }}</b>
                 </small>
               </div>
 
@@ -304,12 +308,12 @@
                 <table class="table table-sm table-hover table-striped mb-0 align-middle">
                   <thead class="table-light sticky-top" style="z-index: 1;">
                     <tr>
-                      <th class="text-center py-2" style="width: 55px;">No</th>
-                      <th class="py-2">Nama Penyakit / Diagnosa INACBG</th>
-                      <th class="text-center py-2" style="width: 160px;">🟢 Ringan (Level I)</th>
-                      <th class="text-center py-2" style="width: 160px;">🟡 Sedang (Level II)</th>
-                      <th class="text-center py-2" style="width: 160px;">🔴 Berat (Level III)</th>
-                      <th class="text-center py-2" style="width: 140px;">📊 Total Kasus</th>
+                      <th class="text-center py-2.5" style="width: 55px;">No</th>
+                      <th class="py-2.5">Nama Penyakit / Diagnosa INACBG</th>
+                      <th class="text-center py-2.5 text-success" style="width: 160px;">Ringan (Level I)</th>
+                      <th class="text-center py-2.5 text-warning" style="width: 160px;">Sedang (Level II)</th>
+                      <th class="text-center py-2.5 text-danger" style="width: 160px;">Berat (Level III)</th>
+                      <th class="text-center py-2.5 text-primary" style="width: 140px;">Total Kasus</th>
                     </tr>
                   </thead>
                   <tbody>
